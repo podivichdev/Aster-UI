@@ -4450,6 +4450,62 @@ function Library.Window(_, opts)
         Parent = gui,
     })
 
+    -- Drawn cursor: a game that hides the system cursor to aim would leave
+    -- the freed mouse invisible. While the window is open the library draws
+    -- its own cross and follows the pointer, the same build as Obsidian's:
+    -- 3px dark bars with 1px white inner lines.
+    local cursor = create("Frame", {
+        Name = "Cursor",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        Size = UDim2.fromOffset(1, 1),
+        Visible = false,
+        ZIndex = 11000,
+        Parent = gui,
+    })
+    local cross = create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(11, 11),
+        Parent = cursor,
+    })
+    create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, 0, 0, 3),
+        ZIndex = 1,
+        Parent = cross,
+    })
+    create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, -2, 0, 1),
+        ZIndex = 2,
+        Parent = cross,
+    })
+    create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 3, 1, 0),
+        ZIndex = 1,
+        Parent = cross,
+    })
+    create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 1, 1, -2),
+        ZIndex = 2,
+        Parent = cross,
+    })
+    self._cursor = cursor
+    self._cursorBinding = "AsterCursor_" .. string.sub(tostring({}), 10)
+    self._originalMouseIconEnabled = UserInputService.MouseIconEnabled
+
     local root = create("Frame", {
         Name = "Window",
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -4761,6 +4817,7 @@ function Library.Window(_, opts)
     self.MaxSize = opts.MaxSize
     self.KeepOnScreen = opts.KeepOnScreen ~= false
     self.UnlockMouseWhileOpen = opts.UnlockMouseWhileOpen ~= false
+    self.ShowCustomCursor = opts.ShowCustomCursor ~= false
     self:_enableResize(opts.MinSize or Vector2.new(480, 360))
     -- The window's exact size rides along in configs as a hidden flag.
     if opts.SaveSize ~= false then
@@ -5637,6 +5694,7 @@ function Window:_playIntro(morph)
     end
     self._introDone = true
     self:_refreshModal()
+    self:_refreshCursor()
     self:_refreshBackdrop(true)
     task.delay(0.4, function()
         self:_refreshToggleButton()
@@ -19256,6 +19314,7 @@ function Window:Minimize()
     end
     self.Minimized = true
     self:_refreshModal()
+    self:_refreshCursor()
     self._minimizeGeneration = (self._minimizeGeneration or 0) + 1
     local generation = self._minimizeGeneration
     self:_closePopups()
@@ -19331,6 +19390,7 @@ function Window:Restore()
     end
     self.Minimized = false
     self:_refreshModal()
+    self:_refreshCursor()
     self._minimizeGeneration = (self._minimizeGeneration or 0) + 1
     local generation = self._minimizeGeneration
     self:_refreshToggleButton()
@@ -19431,6 +19491,7 @@ function Window:Toggle(open)
     end
     self.Open = open
     self:_refreshModal()
+    self:_refreshCursor()
     self:_refreshToggleButton()
     self:_refreshBackdrop(open)
     -- Like minimize, a plain ghost panel carries the scale and fade. The body
@@ -19514,6 +19575,54 @@ end
 function Window:SetUnlockMouseWhileOpen(enabled)
     self.UnlockMouseWhileOpen = enabled ~= false
     self:_refreshModal()
+end
+
+function Window:SetShowCustomCursor(enabled)
+    self.ShowCustomCursor = enabled ~= false
+    self:_refreshCursor()
+end
+
+-- While the window is open the library draws its own cursor and keeps
+-- MouseIconEnabled in check, so the pointer stays visible in games that hide
+-- it to aim. Same approach as Obsidian: one render step bound at Last, with
+-- the original icon state restored on close.
+function Window:_refreshCursor()
+    if not self._cursor then
+        return
+    end
+    local active = not TOUCH and self._introDone and self.Open and not self.Minimized and not self._destroyed
+    if active and not self._cursorBound then
+        self._cursorBound = true
+        self._originalMouseIconEnabled = UserInputService.MouseIconEnabled
+        pcall(function()
+            RunService:UnbindFromRenderStep(self._cursorBinding)
+        end)
+        RunService:BindToRenderStep(self._cursorBinding, Enum.RenderPriority.Last.Value, function()
+            UserInputService.MouseIconEnabled = not self.ShowCustomCursor
+            local pointer = pointerPosition() - self.Gui.AbsolutePosition
+            self._cursor.Position = UDim2.fromOffset(pointer.X, pointer.Y)
+            self._cursor.Visible = self.ShowCustomCursor
+            if self._destroyed or not (self._introDone and self.Open and not self.Minimized and self.Gui.Parent) then
+                self:_restoreMouseIcon()
+            end
+        end)
+    elseif not active and self._cursorBound then
+        self:_restoreMouseIcon()
+    end
+end
+
+function Window:_restoreMouseIcon()
+    self._cursorBound = false
+    pcall(function()
+        RunService:UnbindFromRenderStep(self._cursorBinding)
+        RunService.RenderStepped:Wait()
+    end)
+    if self._originalMouseIconEnabled ~= nil then
+        UserInputService.MouseIconEnabled = self._originalMouseIconEnabled
+    end
+    if self._cursor then
+        self._cursor.Visible = false
+    end
 end
 
 function Window:SetKeybind(keyCode)
@@ -19694,6 +19803,9 @@ function Window:Destroy()
         return
     end
     self._destroyed = true
+    if self._cursorBound then
+        self:_restoreMouseIcon()
+    end
     for index, entry in ipairs(Library.Windows) do
         if entry == self then
             table.remove(Library.Windows, index)

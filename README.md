@@ -60,6 +60,7 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `LoadingTitle` / `LoadingSubtitle` | string | Text on the loading splash. |
 | `Keybind` (alias `ToggleUIKeybind`) | `Enum.KeyCode` / string | Show/hide key. Default `RightControl`. |
 | `UnlockMouseWhileOpen` | bool | Keeps the cursor usable while the window is open, even when the game locks it to the centre (first person). Default `true`. |
+| `ShowCustomCursor` | bool | While the window is open, draws the library's own cross cursor and hides the system one; with it off the system cursor is forced visible instead. Keeps the pointer visible in games that hide it to aim. Default `true`. |
 | `Size` | `UDim2` | Default `760x520`. |
 | `Theme` / `DefaultTheme` | string | Theme name from `Aster.ThemePresets`. Default `"Cybrion"`. |
 | `Weather` | string | Backdrop weather: `Snow`, `Rain`, `Hell Fire`, `Sakura`, `Fireflies`, `Matrix`, `None`. Default `Matrix`. |
@@ -154,7 +155,8 @@ toggle:Set(true, true)   -- true = silent (no Callback)
 ```lua
 -- visibility
 Window:Toggle(open)  Window:Minimize()  Window:Restore()  Window:SetMinimized(bool)
-Window:SetKeybind(Enum.KeyCode.X)  Window:SetKeepOnScreen(bool)  Window:SetTransparent(bool)  Window:SetUnlockMouseWhileOpen(bool)
+Window:SetKeybind(Enum.KeyCode.X)  Window:SetKeepOnScreen(bool)  Window:SetTransparent(bool)
+Window:SetUnlockMouseWhileOpen(bool)  Window:SetShowCustomCursor(bool)
 Window:SelectTab(tab)  Window:SetHideName(bool)  Window:SetHideAvatar(bool)
 
 -- look

@@ -18,6 +18,7 @@ local Window = Aster:CreateWindow({
     ToggleUIKeybind = "RightControl",
     Theme = "Cybrion",
     Weather = "Matrix",
+    ShowCustomCursor = false,
     ConfigurationSaving = { FolderName = "AsterUIExample" },
     ToggleButton = { Platform = "Mobile", Icon = "layout-grid" },
     Home = {

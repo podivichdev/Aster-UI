@@ -257,6 +257,15 @@ interface:CreateToggle({
     end,
 })
 
+interface:CreateToggle({
+    Name = "Custom cursor",
+    CurrentValue = false,
+    Flag = "CustomCursor",
+    Callback = function(value)
+        Window:SetShowCustomCursor(value)
+    end,
+})
+
 interface:CreateButton({
     Name = "Unload",
     Icon = "power",

@@ -31,9 +31,9 @@ local Window = Aster:CreateWindow({
 -- Watermark ----------------------------------------------------------
 -- The library's draggable label: a floating chip you can grab and drop
 -- anywhere. It refreshes with the current FPS and ping every half
--- second, and the "Watermark" toggle in the Config tab shows/hides it.
--- Instead of the default top-left corner it starts a bit to the right
--- and well down the screen.
+-- second, and the "Watermark" toggle in the Config tab shows/hides it
+-- (off by default). Instead of the default top-left corner it starts a
+-- bit to the right and well down the screen.
 
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
@@ -42,6 +42,7 @@ local Watermark = Aster:AddDraggableLabel({
     Text = "Aster UI | -- FPS | -- ms",
     Position = Vector2.new(120, 420),
 })
+Watermark:SetVisible(false) -- hidden until the Config tab toggle turns it on
 
 local frames, elapsed = 0, 0
 RunService.Heartbeat:Connect(function(deltaTime)
@@ -300,7 +301,7 @@ interface:CreateToggle({
 
 interface:CreateToggle({
     Name = "Watermark",
-    CurrentValue = true,
+    CurrentValue = false,
     Flag = "Watermark",
     Callback = function(value)
         Watermark:SetVisible(value)

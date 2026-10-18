@@ -1,4 +1,4 @@
-# AirFlow
+# Aster UI
 
 **A single-file Roblox UI library for executors.**
 
@@ -9,23 +9,21 @@ It includes: an animated window with sidebar tabs, 20+ widgets, sub-tabs, a sear
 ## Loading
 
 ```lua
-local AirFlow = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOURNAME/AirFlow/main/Library.lua"))()
+local Aster = loadstring(game:HttpGet("https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua"))()
 ```
 
 A jsDelivr mirror (usually faster, cached):
 
 ```lua
-local AirFlow = loadstring(game:HttpGet("https://cdn.jsdelivr.net/gh/YOURNAME/AirFlow@main/Library.lua"))()
+local Aster = loadstring(game:HttpGet("https://cdn.jsdelivr.net/gh/podivichdev/Aster-UI@main/Library.lua"))()
 ```
-
-> Replace `YOURNAME` with the GitHub account that hosts this repository.
 
 ## Quick start
 
 ```lua
-local AirFlow = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOURNAME/AirFlow/main/Library.lua"))()
+local Aster = loadstring(game:HttpGet("https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua"))()
 
-local Window = AirFlow:CreateWindow({
+local Window = Aster:CreateWindow({
     Title = "My Script",
     LoadingTitle = "My Script",
     LoadingSubtitle = "Loading",
@@ -45,15 +43,15 @@ Main:Toggle({
 })
 
 -- Flags give you access to any widget later:
-print(AirFlow.Flags.MyToggle.Value)  -- false
-AirFlow.Flags.MyToggle:Set(true)     -- also runs the Callback
+print(Aster.Flags.MyToggle.Value)  -- false
+Aster.Flags.MyToggle:Set(true)     -- also runs the Callback
 ```
 
 A full demo of every widget is in [`Example.lua`](./Example.lua).
 
 ## Window options
 
-`AirFlow:CreateWindow(opts)` — every field is optional.
+`Aster:CreateWindow(opts)` — every field is optional.
 
 | Option | Type | Description |
 |---|---|---|
@@ -62,7 +60,7 @@ A full demo of every widget is in [`Example.lua`](./Example.lua).
 | `LoadingTitle` / `LoadingSubtitle` | string | Text on the loading splash. |
 | `Keybind` (alias `ToggleUIKeybind`) | `Enum.KeyCode` / string | Show/hide key. Default `RightControl`. |
 | `Size` | `UDim2` | Default `760x520`. |
-| `Theme` / `DefaultTheme` | string | Theme name from `AirFlow.ThemePresets`. Default `"Cybrion"`. |
+| `Theme` / `DefaultTheme` | string | Theme name from `Aster.ThemePresets`. Default `"Cybrion"`. |
 | `Weather` | string | Backdrop weather: `Snow`, `Rain`, `Hell Fire`, `Sakura`, `Fireflies`, `Matrix`, `None`. Default `Matrix`. |
 | `ConfigurationSaving` | table | `{ FolderName, FileName }` — config folder (needs the executor file API). |
 | `ToggleButton` | table | Floating toggle button: `{ Platform = "Mobile" / "Both", Icon }`. |
@@ -101,7 +99,7 @@ Icons are [Lucide](https://lucide.dev) names (`"home"`, `"settings"`, `"shield"`
 
 ## Widgets
 
-All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeName"` to also register it in `AirFlow.Flags`.
+All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeName"` to also register it in `Aster.Flags`.
 
 | Widget | Options |
 |---|---|
@@ -145,7 +143,7 @@ element:Destroy()
 ## Flags
 
 ```lua
-local toggle = AirFlow.Flags.MyToggle
+local toggle = Aster.Flags.MyToggle
 print(toggle.Value)      -- current value
 toggle:Set(true, true)   -- true = silent (no Callback)
 ```
@@ -188,21 +186,21 @@ Window:Destroy()
 ## Library (module) methods
 
 ```lua
-AirFlow:CreateWindow(opts)          AirFlow.Flags
-AirFlow:Notify(opts)                AirFlow.ThemePresets
-AirFlow:SetTheme(name)              AirFlow.Windows
-AirFlow:SetDefaultTheme(name)       AirFlow.DensityModes  -- Compact / Default / Comfortable
-AirFlow:SetDensity(mode)            AirFlow:PreloadIcons()
-AirFlow:SetCornerRadius(px)         AirFlow:LoadFont({ Name = "ValleySans" })
-AirFlow:Destroy()
+Aster:CreateWindow(opts)          Aster.Flags
+Aster:Notify(opts)                Aster.ThemePresets
+Aster:SetTheme(name)              Aster.Windows
+Aster:SetDefaultTheme(name)       Aster.DensityModes  -- Compact / Default / Comfortable
+Aster:SetDensity(mode)            Aster:PreloadIcons()
+Aster:SetCornerRadius(px)         Aster:LoadFont({ Name = "ValleySans" })
+Aster:Destroy()
 ```
 
 ## Themes
 
-Built-in presets (see `AirFlow.ThemePresets` for the full list and exact colors): `Cybrion` (default), `Midnight`, `Nebula`, `Synthwave`, `Sakura`, `Velvet`, `Rose`, `Crimson`, `Sunset`, `Amber`, `Gold` and more.
+Built-in presets (see `Aster.ThemePresets` for the full list and exact colors): `Cybrion` (default), `Midnight`, `Nebula`, `Synthwave`, `Sakura`, `Velvet`, `Rose`, `Crimson`, `Sunset`, `Amber`, `Gold` and more.
 
 ```lua
-AirFlow:SetTheme("Midnight")
+Aster:SetTheme("Midnight")
 Window:SaveTheme("MyTheme")   -- saved into the config folder
 ```
 
@@ -244,15 +242,15 @@ LICENSE         MIT
 ```bash
 git init
 git add .
-git commit -m "AirFlow 1.0.0"
-git remote add origin https://github.com/YOURNAME/AirFlow.git
+git commit -m "Aster UI 1.0.0"
+git remote add origin https://github.com/podivichdev/Aster-UI.git
 git push -u origin main
 ```
 
 Then the raw link is:
 
 ```
-https://raw.githubusercontent.com/YOURNAME/AirFlow/main/Library.lua
+https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua
 ```
 
 ## Credits

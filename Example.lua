@@ -1,21 +1,21 @@
 --[[
-    AirFlow example
+    Aster UI example
 
-    Loads the library from GitHub (replace YOURNAME with the account that
-    hosts the repository) and builds a demo window with every common widget.
+    Loads the library from GitHub and builds a demo window with every
+    common widget.
 ]]
 
-local AirFlow = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOURNAME/AirFlow/main/Library.lua"))()
+local Aster = loadstring(game:HttpGet("https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua"))()
 
-local Window = AirFlow:CreateWindow({
-    Name = "AirFlow",
-    Title = "AirFlow Example",
-    LoadingTitle = "AirFlow",
+local Window = Aster:CreateWindow({
+    Name = "AsterUI",
+    Title = "Aster UI Example",
+    LoadingTitle = "Aster UI",
     LoadingSubtitle = "Example",
     ToggleUIKeybind = "RightControl",
     Theme = "Cybrion",
     Weather = "Matrix",
-    ConfigurationSaving = { FolderName = "AirFlowExample" },
+    ConfigurationSaving = { FolderName = "AsterUIExample" },
     ToggleButton = { Platform = "Mobile", Icon = "layout-grid" },
     Home = {
         Discord = "discord.gg/example",
@@ -32,7 +32,7 @@ Main:Section("Controls")
 
 Main:Paragraph({
     Name = "Welcome",
-    Content = "Every widget in AirFlow, on one tab. Toggle the window with RightControl.",
+    Content = "Every widget in Aster UI, on one tab. Toggle the window with RightControl.",
 })
 
 Main:Toggle({
@@ -99,7 +99,7 @@ Main:Button({
     Style = "Primary",
     Callback = function()
         Window:Notify({
-            Title = "AirFlow",
+            Title = "Aster UI",
             Content = "Hello from the example script.",
             Duration = 4,
             Type = "Success",
@@ -110,7 +110,7 @@ Main:Button({
 Main:Button({
     Name = "Read the flag value",
     Callback = function()
-        print("[demo] slider value:", AirFlow.Flags["Demo.Speed"]:Get())
+        print("[demo] slider value:", Aster.Flags["Demo.Speed"]:Get())
     end,
 })
 
@@ -132,7 +132,7 @@ Settings:Dropdown({
     Options = { "Cybrion", "Midnight", "Nebula", "Synthwave", "Sakura", "Gold" },
     Default = "Cybrion",
     Callback = function(value)
-        AirFlow:SetTheme(value)
+        Aster:SetTheme(value)
     end,
 })
 
@@ -193,7 +193,7 @@ Settings:Button({
 -- Ready -------------------------------------------------------------
 
 Window:Notify({
-    Title = "AirFlow",
+    Title = "Aster UI",
     Icon = "sparkles",
     Content = "Example loaded. RightControl toggles the window.",
     Duration = 6,

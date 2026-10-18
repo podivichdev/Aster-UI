@@ -5135,13 +5135,33 @@ function Library:AddDraggableLabel(...)
     local dragOrigin = Vector2.zero
     local dragStart = Vector2.zero
 
+    local measureClampQueued = false
     local function placeAt(point)
         local current = scale.Scale
-        local bound = (gui.AbsoluteSize - pill.AbsoluteSize) / current
-        offset = Vector2.new(
-            math.clamp(point.X, 0, math.max(bound.X, 0)),
-            math.clamp(point.Y, 0, math.max(bound.Y, 0))
-        )
+        local viewport = gui.AbsoluteSize
+        if viewport.X <= 0 or viewport.Y <= 0 then
+            -- The screen gui has no size on its first frames (the window keeps
+            -- an AbsoluteSize listener for the same reason). Clamping against
+            -- a zero viewport collapses every bound to zero and pins the
+            -- label to the corner, so the point is taken as asked and gets
+            -- re-clamped the moment the screen can be measured.
+            offset = Vector2.new(math.max(point.X, 0), math.max(point.Y, 0))
+            if not measureClampQueued then
+                measureClampQueued = true
+                RunService.RenderStepped:Once(function()
+                    measureClampQueued = false
+                    if not entry.Destroyed and pill.Parent then
+                        placeAt(offset)
+                    end
+                end)
+            end
+        else
+            local bound = (viewport - pill.AbsoluteSize) / current
+            offset = Vector2.new(
+                math.clamp(point.X, 0, math.max(bound.X, 0)),
+                math.clamp(point.Y, 0, math.max(bound.Y, 0))
+            )
+        end
         pill.Position = UDim2.fromOffset(offset.X, offset.Y)
     end
 

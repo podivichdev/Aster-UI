@@ -5022,15 +5022,24 @@ local OVERLAY_UI_SCALE = 1.1
 
 function Library:AddDraggableLabel(...)
     local params = select(1, ...)
-    local text, icon, iconPosition
+    local text, icon, iconPosition, startPosition
     if typeof(params) == "table" then
         text = params.Text
         icon = params.Icon
         iconPosition = params.IconPosition
+        startPosition = params.Position
     elseif typeof(params) == "string" then
         text = params
         icon = select(2, ...)
         iconPosition = select(3, ...)
+    end
+    if typeof(startPosition) == "table" then
+        local x = tonumber(startPosition.X or startPosition[1])
+        local y = tonumber(startPosition.Y or startPosition[2])
+        startPosition = (x and y) and Vector2.new(x, y) or nil
+    end
+    if typeof(startPosition) ~= "Vector2" then
+        startPosition = nil
     end
     if typeof(iconPosition) ~= "string" then
         iconPosition = "left"
@@ -5205,15 +5214,20 @@ function Library:AddDraggableLabel(...)
     applyCurrentIcon()
     table.insert(Library._draggableLabels, entry)
 
-    -- Starts at the top-left corner, dropped below whatever label is already
-    -- there (the same stacking Obsidian uses). One frame may pass first so
-    -- the AutomaticSize has measured the pill.
-    local function firstFreeSpot()
+    -- One frame may pass first so the AutomaticSize has measured the pill.
+    local function measurePill()
         if pill.AbsoluteSize.X <= 0 then
             pcall(function()
                 RunService.RenderStepped:Wait()
             end)
         end
+    end
+
+    -- Without a Position the label starts at the top-left corner, dropped
+    -- below whatever label is already there (the same stacking Obsidian
+    -- uses); with one it goes exactly where it was asked to.
+    local function firstFreeSpot()
+        measurePill()
         local current = scale.Scale
         local size = pill.AbsoluteSize / current
         if size.X <= 0 then
@@ -5255,7 +5269,13 @@ function Library:AddDraggableLabel(...)
         end
         return Vector2.new(x, y)
     end
-    placeAt(firstFreeSpot())
+
+    if startPosition then
+        measurePill()
+        placeAt(startPosition)
+    else
+        placeAt(firstFreeSpot())
+    end
 
     entry._reclamp = function()
         placeAt(offset)

@@ -5010,11 +5010,15 @@ function Library:Dialog(opts)
 end
 
 -- A draggable label: Obsidian's watermark chip rebuilt with the window's own
--- colours, font and UI scale, so it follows every theme change. It lives in
--- the newest window's screen gui (above the window body and its dim, below
--- the pop-out layer, the toggle button, the tooltip and the cursor), drags
--- with mouse or touch, and is destroyed together with the window.
+-- colours and font, so it follows every theme change. Overlays draw 10%
+-- larger than the window's UI scale and follow it live (library default). It
+-- lives in the newest window's screen gui (above the window body and its dim,
+-- below the pop-out layer, the toggle button, the tooltip and the cursor),
+-- drags with mouse or touch, and is destroyed together with the window.
 Library._draggableLabels = {}
+-- Overlay UI scale: a touch above the window's own scale, so watermarks stay
+-- readable over the game.
+local OVERLAY_UI_SCALE = 1.1
 
 function Library:AddDraggableLabel(...)
     local params = select(1, ...)
@@ -5065,7 +5069,7 @@ function Library:AddDraggableLabel(...)
     corner(pill, UDim.new(0, 6))
     stroke(pill, Theme.Stroke)
     local pad = padding(pill, 12, 12, 6, 6)
-    local scale = create("UIScale", { Scale = window:GetUIScale(), Parent = pill })
+    local scale = create("UIScale", { Scale = window:GetUIScale() * OVERLAY_UI_SCALE, Parent = pill })
     entry._scale = scale
 
     local textLabel = label({
@@ -5260,10 +5264,11 @@ function Library:AddDraggableLabel(...)
     return entry
 end
 
--- Keeps every draggable label on the newest window's UI scale.
+-- Keeps every draggable label on the newest window's UI scale, always 10%
+-- above it.
 function Library._syncDraggableLabels()
     local window = Library.Windows[#Library.Windows]
-    local target = (window and window:GetUIScale()) or 1
+    local target = ((window and window:GetUIScale()) or 1) * OVERLAY_UI_SCALE
     for index = #Library._draggableLabels, 1, -1 do
         local entry = Library._draggableLabels[index]
         local pill = entry and entry.Label

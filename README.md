@@ -200,7 +200,7 @@ Aster:SetCornerRadius(px)         Aster:Destroy()
 
 ### Draggable labels
 
-`Aster:AddDraggableLabel(text, icon, iconPosition)` drops a small draggable pill on screen — Obsidian's watermark, rebuilt with the window's colours, font and UI scale, so it follows every theme change. Create a window first: the label lives in the window's screen gui (above the window body, below the pop-outs, the toggle button, the tooltip and the cursor) and is destroyed together with it. Extra labels stack below the ones already there instead of overlapping.
+`Aster:AddDraggableLabel(text, icon, iconPosition)` drops a small draggable pill on screen — Obsidian's watermark, rebuilt with the window's colours and font, so it follows every theme change; it draws 10% larger than the window's UI scale and follows it live. Create a window first: the label lives in the window's screen gui (above the window body, below the pop-outs, the toggle button, the tooltip and the cursor) and is destroyed together with it. Extra labels stack below the ones already there instead of overlapping.
 
 ```lua
 local Watermark = Aster:AddDraggableLabel("FPS: 240 | PING: 32 ms")

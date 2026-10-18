@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `Example.lua`: full Config tab mirroring a real script's settings: interface options, config manager, theme manager and the direct config API.
+
 ## 1.0.0 — 2026-10-17
 
 Initial public release.

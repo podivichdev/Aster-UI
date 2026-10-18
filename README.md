@@ -47,7 +47,7 @@ print(Aster.Flags.MyToggle.Value)  -- false
 Aster.Flags.MyToggle:Set(true)     -- also runs the Callback
 ```
 
-A full demo of every widget is in [`Example.lua`](./Example.lua).
+A full demo of every widget, plus a Config tab with a real script's settings (interface options, config manager, theme manager, and the direct config API), is in [Example.lua](./Example.lua).
 
 ## Window options
 
@@ -99,7 +99,7 @@ Icons are [Lucide](https://lucide.dev) names (`"home"`, `"settings"`, `"shield"`
 
 ## Widgets
 
-All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeName"` to also register it in `Aster.Flags`.
+All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeName"` to also register it in `Aster.Flags`. Every method also has a Fluent-style `Create*` alias (`Tab:CreateToggle` == `Tab:Toggle`, `Tab:CreateConfigManager` == `Tab:ConfigManager`), and the same calls work inside groupboxes.
 
 | Widget | Options |
 |---|---|
@@ -123,8 +123,8 @@ All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeNa
 | `Tab:Viewport(opts)` | 3D viewport card. |
 | `Tab:Table(opts)` | Data table card. |
 | `Tab:Status(opts)` / `Tab:StatusList(opts)` / `Tab:Statuses(entries, shared)` | Live status rows with health colors. |
-| `Tab:ConfigManager(opts)` | Ready-made config manager UI (save / load / import / export). |
-| `Tab:ThemeManager(opts)` | Ready-made theme + weather picker UI. |
+| `Tab:ConfigManager({ Name, Side })` | Ready-made config manager UI (create / save / load / delete / rename / autoload / import / export). |
+| `Tab:ThemeManager({ Name, Side })` | Ready-made theme, background and weather picker UI. |
 
 `Title`, `Description`, `CurrentValue` / `Value`, `CurrentOption`, `MultipleOptions`, `Values` and `Increment` are accepted as friendly aliases everywhere (`Title` → `Name`, `Desc` → `Name`'s desc field, `Value` → `Default`, `Step` → `Increment`, …).
 
@@ -169,9 +169,9 @@ Window:SetCornerRadius(px)  Window:SaveTheme(name)  Window:LoadTheme(name)  Wind
 
 -- configs
 Window:SaveConfig(name)  Window:LoadConfig(name)  Window:ListConfigs()  Window:DeleteConfig(name)
-Window:RenameConfig(name, newName)  Window:ResetConfig()  Window:ExportConfig(name)
-Window:ImportConfig(code)  Window:DecodeConfig(code)  Window:ConfigExists(name)
-Window:SetAutoload(name)  Window:GetAutoload()  Window:LoadAutoload()
+Window:RenameConfig(name, newName)  Window:ResetConfig()  Window:ClearWorkspace()
+Window:ExportConfig(name)  Window:ImportConfig(code, saveAs, force)  Window:DecodeConfig(code)  Window:ConfigExists(name)
+Window:SetAutoload(name)  Window:GetAutoload()  Window:LoadAutoload()  Window:GetAutoloadMode()  Window:SetAutoloadMode(mode)
 Window:OnConfigChanged(fn)
 
 -- misc
@@ -218,6 +218,8 @@ Window:ImportConfig(code)
 ```
 
 This needs the executor's file API (`writefile` / `readfile` / `isfile`). Without it, configs and custom fonts simply won't persist — nothing else changes.
+
+Tab:ConfigManager() builds the whole UI for it (create / save / load / delete / rename / reset / autoload, global or per account, plus share codes with copy and paste). Window:ClearWorkspace() deletes the script's entire folder.
 
 ## Executor notes
 

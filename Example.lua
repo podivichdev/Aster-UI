@@ -5,7 +5,8 @@
     widget showcase on the Main tab (buttons on top switch pages, each
     page spreads its groupboxes over the left and right columns) and a
     Config tab mirroring a real script's settings (interface options,
-    config manager, theme manager).
+    config manager, theme manager), plus the draggable FPS/ping
+    watermark from the library.
 ]]
 
 local Aster = loadstring(game:HttpGet("https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua"))()
@@ -26,6 +27,32 @@ local Window = Aster:CreateWindow({
         Stats = { "Players", "Session", "FPS", "Ping" },
     },
 })
+
+-- Watermark ----------------------------------------------------------
+-- The library's draggable label: a floating chip you can grab and drop
+-- anywhere. It refreshes with the current FPS and ping every half
+-- second, and the "Watermark" toggle in the Config tab shows/hides it.
+
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+
+local Watermark = Aster:AddDraggableLabel("Aster UI | -- FPS | -- ms")
+
+local frames, elapsed = 0, 0
+RunService.Heartbeat:Connect(function(deltaTime)
+    frames += 1
+    elapsed += deltaTime
+    if elapsed < 0.5 then
+        return
+    end
+    local fps = math.floor(frames / elapsed + 0.5)
+    frames, elapsed = 0, 0
+    local ping = 0
+    pcall(function()
+        ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+    end)
+    Watermark:SetText("Aster UI | " .. fps .. " FPS | " .. ping .. " ms")
+end)
 
 local Main = Window:Tab({
     Name = "Main",
@@ -263,6 +290,15 @@ interface:CreateToggle({
     Flag = "CustomCursor",
     Callback = function(value)
         Window:SetShowCustomCursor(value)
+    end,
+})
+
+interface:CreateToggle({
+    Name = "Watermark",
+    CurrentValue = true,
+    Flag = "Watermark",
+    Callback = function(value)
+        Watermark:SetVisible(value)
     end,
 })
 

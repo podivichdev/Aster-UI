@@ -5,6 +5,7 @@
 - `Window`: `UnlockMouseWhileOpen` option (default `true`) and `Window:SetUnlockMouseWhileOpen(bool)` — while the window is open the cursor stays usable even when the game locks it to the centre (first person), powered by `GuiButton.Modal` (no per-frame fight with `MouseBehavior`).
 - `Window`: `ShowCustomCursor` option (default `true`) and `Window:SetShowCustomCursor(bool)` — the window draws its own cross cursor and keeps `MouseIconEnabled` in check, so the freed mouse stays visible in games that hide it to aim; the original icon state is restored on close. Same solution Obsidian uses.
 - `Library`: `Aster:AddDraggableLabel(text, icon, iconPosition)` — Obsidian's draggable watermark rebuilt for Aster: themed colours and fonts, follows the theme and the UI scale, drags with mouse or touch, stacks below labels already on screen. Methods: `SetText`, `SetIcon`, `SetIconPosition`, `SetVisible`, `Destroy`.
+- `Example.lua`: draggable watermark — `Aster UI | FPS | ping ms`, refreshed every half second, with a "Watermark" toggle in the Config tab.
 - `Example.lua`: Main tab rebuilt as a paged showcase, like a real script's Combat tab — buttons on top switch pages (`Tab:CreateSubTab`) and each page spreads its groupboxes over the left and right columns.
 - `Example.lua`: single Config tab mirroring a real script's settings: interface options, config manager and theme manager.
 - Docs: quick-start uses a valid icon name (`"house"` — the icon set has no `"home"`).

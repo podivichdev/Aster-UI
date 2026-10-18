@@ -4436,6 +4436,20 @@ function Library.Window(_, opts)
     })
     self.Gui = gui
 
+    -- Engine-level cursor release: while a visible button with Modal = true
+    -- exists, the mouse stays movable even when the game holds it locked to
+    -- the centre (first person). Kept zero-sized so it can never swallow a
+    -- click; only the flag matters.
+    self._modal = create("TextButton", {
+        Name = "Modal",
+        BackgroundTransparency = 1,
+        Modal = false,
+        Size = UDim2.fromScale(0, 0),
+        Text = "",
+        ZIndex = -999,
+        Parent = gui,
+    })
+
     local root = create("Frame", {
         Name = "Window",
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -4746,6 +4760,7 @@ function Library.Window(_, opts)
     self:_enableDrag()
     self.MaxSize = opts.MaxSize
     self.KeepOnScreen = opts.KeepOnScreen ~= false
+    self.UnlockMouseWhileOpen = opts.UnlockMouseWhileOpen ~= false
     self:_enableResize(opts.MinSize or Vector2.new(480, 360))
     -- The window's exact size rides along in configs as a hidden flag.
     if opts.SaveSize ~= false then
@@ -5621,6 +5636,7 @@ function Window:_playIntro(morph)
         return
     end
     self._introDone = true
+    self:_refreshModal()
     self:_refreshBackdrop(true)
     task.delay(0.4, function()
         self:_refreshToggleButton()
@@ -19239,6 +19255,7 @@ function Window:Minimize()
         return
     end
     self.Minimized = true
+    self:_refreshModal()
     self._minimizeGeneration = (self._minimizeGeneration or 0) + 1
     local generation = self._minimizeGeneration
     self:_closePopups()
@@ -19313,6 +19330,7 @@ function Window:Restore()
         return
     end
     self.Minimized = false
+    self:_refreshModal()
     self._minimizeGeneration = (self._minimizeGeneration or 0) + 1
     local generation = self._minimizeGeneration
     self:_refreshToggleButton()
@@ -19412,6 +19430,7 @@ function Window:Toggle(open)
         return
     end
     self.Open = open
+    self:_refreshModal()
     self:_refreshToggleButton()
     self:_refreshBackdrop(open)
     -- Like minimize, a plain ghost panel carries the scale and fade. The body
@@ -19478,6 +19497,23 @@ function Window:SetKeepOnScreen(enabled)
     if self.KeepOnScreen then
         self:_clampToScreen()
     end
+end
+
+-- The modal element only ever carries the Modal flag (see its creation
+-- note). Refreshed from every path that changes what is on screen.
+function Window:_refreshModal()
+    if not self._modal then
+        return
+    end
+    self._modal.Modal = self.UnlockMouseWhileOpen == true
+        and self.Open == true
+        and self._introDone == true
+        and not self.Minimized
+end
+
+function Window:SetUnlockMouseWhileOpen(enabled)
+    self.UnlockMouseWhileOpen = enabled ~= false
+    self:_refreshModal()
 end
 
 function Window:SetKeybind(keyCode)

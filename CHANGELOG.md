@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `Window`: `UnlockMouseWhileOpen` option (default `true`) and `Window:SetUnlockMouseWhileOpen(bool)` — while the window is open the cursor stays usable even when the game locks it to the centre (first person), powered by `GuiButton.Modal` (no per-frame fight with `MouseBehavior`).
 - `Example.lua`: Main tab rebuilt as a paged showcase, like a real script's Combat tab — buttons on top switch pages (`Tab:CreateSubTab`) and each page spreads its groupboxes over the left and right columns.
 - `Example.lua`: single Config tab mirroring a real script's settings: interface options, config manager and theme manager.
 - Docs: quick-start uses a valid icon name (`"house"` — the icon set has no `"home"`).

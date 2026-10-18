@@ -47,7 +47,7 @@ print(Aster.Flags.MyToggle.Value)  -- false
 Aster.Flags.MyToggle:Set(true)     -- also runs the Callback
 ```
 
-A full demo of every widget, plus a Config tab with a real script's settings (interface options, config manager, theme manager, and the direct config API), is in [Example.lua](./Example.lua).
+A full demo of every widget, plus a Config tab with a real script's settings (interface options, config manager and theme manager), is in [`Example.lua`](./Example.lua).
 
 ## Window options
 
@@ -219,7 +219,7 @@ Window:ImportConfig(code)
 
 This needs the executor's file API (`writefile` / `readfile` / `isfile`). Without it, configs and custom fonts simply won't persist — nothing else changes.
 
-Tab:ConfigManager() builds the whole UI for it (create / save / load / delete / rename / reset / autoload, global or per account, plus share codes with copy and paste). Window:ClearWorkspace() deletes the script's entire folder.
+`Tab:ConfigManager()` builds the whole UI for it (create / save / load / delete / rename / reset / autoload, global or per account, plus share codes with copy and paste). `Window:ClearWorkspace()` deletes the script's entire folder.
 
 ## Executor notes
 

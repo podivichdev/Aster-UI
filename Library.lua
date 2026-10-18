@@ -4959,7 +4959,18 @@ function Library.Window(_, opts)
         self:_createOpenButton(type(opts.OpenButton) == "table" and opts.OpenButton or {})
     end
     if opts.Backdrop ~= false then
-        self:_buildBackdrop(type(opts.Backdrop) == "table" and opts.Backdrop or {})
+        local backdrop = type(opts.Backdrop) == "table" and opts.Backdrop or {}
+        -- A top-level Weather option feeds the backdrop unless the Backdrop
+        -- table carries its own; the caller's table is left untouched.
+        if opts.Weather ~= nil and backdrop.Weather == nil then
+            local merged = {}
+            for key, value in pairs(backdrop) do
+                merged[key] = value
+            end
+            merged.Weather = opts.Weather
+            backdrop = merged
+        end
+        self:_buildBackdrop(backdrop)
     end
     self._introDone = false
 

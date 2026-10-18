@@ -31,7 +31,7 @@ local Window = Aster:CreateWindow({
     ConfigurationSaving = { FolderName = "MyScriptConfigs" },
 })
 
-local Main = Window:Tab({ Name = "Main", Icon = "home" })
+local Main = Window:Tab({ Name = "Main", Icon = "house" })
 
 Main:Section("General")
 
@@ -47,7 +47,7 @@ print(Aster.Flags.MyToggle.Value)  -- false
 Aster.Flags.MyToggle:Set(true)     -- also runs the Callback
 ```
 
-A full demo of every widget, plus a Config tab with a real script's settings (interface options, config manager and theme manager), is in [`Example.lua`](./Example.lua).
+A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main tab (page buttons on top, groupboxes over both columns) and a Config tab with a real script's settings (interface options, config manager and theme manager).
 
 ## Window options
 
@@ -95,7 +95,7 @@ local Sub = Tab:SubTab({ Name = "Extra", Icon = "layers" })
 Tab:SelectSubTab(Sub)
 ```
 
-Icons are [Lucide](https://lucide.dev) names (`"home"`, `"settings"`, `"shield"`, `"sparkles"`, …), fetched once at runtime.
+Icons are [Lucide](https://lucide.dev) names (`"house"`, `"settings"`, `"shield"`, `"sparkles"`, …), fetched once at runtime; the set tracks current Lucide names (e.g. `"house"`, not the older `"home"`).
 
 ## Widgets
 
@@ -233,7 +233,7 @@ This needs the executor's file API (`writefile` / `readfile` / `isfile`). Withou
 
 ```
 Library.lua     the library itself (this is the file you load)
-Example.lua     demo window using every widget
+Example.lua     demo window with the common widgets
 README.md       this file
 CHANGELOG.md
 LICENSE         MIT

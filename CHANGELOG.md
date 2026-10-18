@@ -2,7 +2,9 @@
 
 ## Unreleased
 
+- `Example.lua`: Main tab rebuilt as a paged showcase, like a real script's Combat tab — buttons on top switch pages (`Tab:CreateSubTab`) and each page spreads its groupboxes over the left and right columns.
 - `Example.lua`: single Config tab mirroring a real script's settings: interface options, config manager and theme manager.
+- Docs: quick-start uses a valid icon name (`"house"` — the icon set has no `"home"`).
 
 ## 1.0.0 — 2026-10-17
 

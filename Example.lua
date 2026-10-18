@@ -1,9 +1,11 @@
 --[[
     Aster UI example
 
-    Loads the library from GitHub and builds a demo window: every common
-    widget on the Main tab, and a Config tab mirroring a real script's
-    settings (interface options, config manager, theme manager).
+    Loads the library from GitHub and builds a demo window: a paged
+    widget showcase on the Main tab (buttons on top switch pages, each
+    page spreads its groupboxes over the left and right columns) and a
+    Config tab mirroring a real script's settings (interface options,
+    config manager, theme manager).
 ]]
 
 local Aster = loadstring(game:HttpGet("https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua"))()
@@ -24,154 +26,194 @@ local Window = Aster:CreateWindow({
     },
 })
 
-local Main = Window:Tab({ Name = "Main", Icon = "home" })
+local Main = Window:Tab({
+    Name = "Main",
+    Icon = "layout-dashboard",
+    Desc = "Widget showcase, one page per category",
+})
 local Config = Window:Tab({ Name = "Config", Icon = "settings" })
 
--- Main tab ----------------------------------------------------------
+-- Main tab -----------------------------------------------------------
+-- Shaped like a real script's Combat tab: the buttons on top switch
+-- pages, and each page lays its groupboxes out over the left and right
+-- columns.
 
-Main:Section("Controls")
+local function buildControls(page)
+    local controls = page:AddLeftGroupbox({ Name = "Controls", Icon = "toggle-right" })
 
-Main:Paragraph({
-    Name = "Welcome",
-    Content = "Every widget in Aster UI, on one tab. Toggle the window with RightControl.",
-})
+    controls:Paragraph({
+        Name = "Welcome",
+        Content = "Every widget in Aster UI, one page per category. Toggle the window with RightControl.",
+    })
 
-Main:Toggle({
-    Name = "Enable feature",
-    Desc = "A simple on/off switch.",
-    Flag = "Demo.Enable",
-    Default = false,
-    Callback = function(on)
-        print("[demo] enable:", on)
-    end,
-})
+    controls:Toggle({
+        Name = "Enable feature",
+        Desc = "A simple on/off switch.",
+        Flag = "Demo.Enable",
+        Default = false,
+        Callback = function(on)
+            print("[demo] enable:", on)
+        end,
+    })
 
-Main:Slider({
-    Name = "Speed",
-    Desc = "OnRelease fires when you let go of the knob.",
-    Flag = "Demo.Speed",
-    Min = 0,
-    Max = 100,
-    Step = 1,
-    Suffix = " u/s",
-    Default = 50,
-    Callback = function(value)
-        print("[demo] speed:", value)
-    end,
-})
+    controls:Slider({
+        Name = "Speed",
+        Desc = "OnRelease fires when you let go of the knob.",
+        Flag = "Demo.Speed",
+        Min = 0,
+        Max = 100,
+        Step = 1,
+        Suffix = " u/s",
+        Default = 50,
+        Callback = function(value)
+            print("[demo] speed:", value)
+        end,
+    })
 
-Main:Divider({ Text = "Selection" })
+    local actions = page:AddRightGroupbox({ Name = "Actions", Icon = "zap" })
 
-Main:Dropdown({
-    Name = "Mode",
-    Flag = "Demo.Mode",
-    Options = { "Legit", "Rage", "Hybrid" },
-    Default = "Legit",
-    Callback = function(value)
-        print("[demo] mode:", value)
-    end,
-})
+    actions:Button({
+        Name = "Push a notification",
+        Style = "Primary",
+        Callback = function()
+            Window:Notify({
+                Title = "Aster UI",
+                Content = "Hello from the example script.",
+                Duration = 4,
+                Type = "Success",
+            })
+        end,
+    })
 
-Main:Dropdown({
-    Name = "Targets",
-    Desc = "Multi-select: the callback receives a table.",
-    Flag = "Demo.Targets",
-    Options = { "Players", "Bots", "NPCs" },
-    Default = { "Players" },
-    Multi = true,
-    Callback = function(values)
-        print("[demo] targets:", table.concat(values, ", "))
-    end,
-})
+    actions:Button({
+        Name = "Read the flag value",
+        Callback = function()
+            print("[demo] slider value:", Aster.Flags["Demo.Speed"]:Get())
+        end,
+    })
+end
 
-Main:Keybind({
-    Name = "Panic key",
-    Flag = "Demo.Key",
-    Default = "P",
-    Callback = function(key)
-        print("[demo] pressed:", key.Name)
-    end,
-})
+local function buildSelection(page)
+    local selection = page:AddLeftGroupbox({ Name = "Selection", Icon = "list" })
 
-Main:Section("Look")
+    selection:Dropdown({
+        Name = "Mode",
+        Flag = "Demo.Mode",
+        Options = { "Legit", "Rage", "Hybrid" },
+        Default = "Legit",
+        Callback = function(value)
+            print("[demo] mode:", value)
+        end,
+    })
 
-Main:ColorPicker({
-    Name = "Accent color",
-    Flag = "Demo.Accent",
-    Default = Color3.fromRGB(50, 230, 150),
-    Callback = function(color)
-        print("[demo] color:", color)
-    end,
-})
+    selection:Dropdown({
+        Name = "Targets",
+        Desc = "Multi-select: the callback receives a table.",
+        Flag = "Demo.Targets",
+        Options = { "Players", "Bots", "NPCs" },
+        Default = { "Players" },
+        Multi = true,
+        Callback = function(values)
+            print("[demo] targets:", table.concat(values, ", "))
+        end,
+    })
 
-Main:Dropdown({
-    Name = "Theme",
-    Options = { "Cybrion", "Midnight", "Nebula", "Synthwave", "Sakura", "Gold" },
-    Default = "Cybrion",
-    Callback = function(value)
-        Aster:SetTheme(value)
-    end,
-})
+    local keys = page:AddRightGroupbox({ Name = "Keys", Icon = "keyboard" })
 
-Main:Dropdown({
-    Name = "Weather",
-    Options = { "Snow", "Rain", "Hell Fire", "Sakura", "Fireflies", "Matrix", "None" },
-    Default = "Matrix",
-    Callback = function(value)
-        Window:SetWeather(value)
-    end,
-})
+    keys:Keybind({
+        Name = "Panic key",
+        Flag = "Demo.Key",
+        Default = "P",
+        Callback = function(key)
+            print("[demo] pressed:", key.Name)
+        end,
+    })
+end
 
-Main:Section("Input")
+local function buildLook(page)
+    local theme = page:AddLeftGroupbox({ Name = "Theme", Icon = "palette" })
 
-Main:Input({
-    Name = "Profile name",
-    Flag = "Demo.Name",
-    Placeholder = "type something...",
-    Callback = function(text, enterPressed)
-        print("[demo] text:", text, "enter:", enterPressed)
-    end,
-})
+    theme:ColorPicker({
+        Name = "Accent color",
+        Flag = "Demo.Accent",
+        Default = Color3.fromRGB(50, 230, 150),
+        Callback = function(color)
+            print("[demo] color:", color)
+        end,
+    })
 
-Main:Stepper({
-    Name = "Volume",
-    Flag = "Demo.Volume",
-    Min = 0,
-    Max = 10,
-    Step = 1,
-    Default = 5,
-    Callback = function(value)
-        print("[demo] volume:", value)
-    end,
-})
+    theme:Dropdown({
+        Name = "Theme",
+        Options = { "Cybrion", "Midnight", "Nebula", "Synthwave", "Sakura", "Gold" },
+        Default = "Cybrion",
+        Callback = function(value)
+            Aster:SetTheme(value)
+        end,
+    })
 
-Main:Progress({
-    Name = "Example progress",
-    Flag = "Demo.Progress",
-    Default = 35,
-})
+    local backdrop = page:AddRightGroupbox({ Name = "Backdrop", Icon = "cloud-sun" })
 
-Main:Section("Actions")
+    backdrop:Dropdown({
+        Name = "Weather",
+        Options = { "Snow", "Rain", "Hell Fire", "Sakura", "Fireflies", "Matrix", "None" },
+        Default = "Matrix",
+        Callback = function(value)
+            Window:SetWeather(value)
+        end,
+    })
 
-Main:Button({
-    Name = "Push a notification",
-    Style = "Primary",
-    Callback = function()
-        Window:Notify({
-            Title = "Aster UI",
-            Content = "Hello from the example script.",
-            Duration = 4,
-            Type = "Success",
-        })
-    end,
-})
+    backdrop:Toggle({
+        Name = "Dim backdrop",
+        Desc = "Darkens the screen behind the window.",
+        Flag = "Demo.Dim",
+        Default = true,
+        Callback = function(value)
+            Window:SetDim(value)
+        end,
+    })
+end
 
-Main:Button({
-    Name = "Read the flag value",
-    Callback = function()
-        print("[demo] slider value:", Aster.Flags["Demo.Speed"]:Get())
-    end,
-})
+local function buildInput(page)
+    local input = page:AddLeftGroupbox({ Name = "Input", Icon = "text-cursor-input" })
+
+    input:Input({
+        Name = "Profile name",
+        Flag = "Demo.Name",
+        Placeholder = "type something...",
+        Callback = function(text, enterPressed)
+            print("[demo] text:", text, "enter:", enterPressed)
+        end,
+    })
+
+    input:Stepper({
+        Name = "Volume",
+        Flag = "Demo.Volume",
+        Min = 0,
+        Max = 10,
+        Step = 1,
+        Default = 5,
+        Callback = function(value)
+            print("[demo] volume:", value)
+        end,
+    })
+
+    local feedback = page:AddRightGroupbox({ Name = "Feedback", Icon = "activity" })
+
+    feedback:Progress({
+        Name = "Example progress",
+        Flag = "Demo.Progress",
+        Default = 35,
+    })
+end
+
+for _, page in ipairs({
+    { Name = "Controls", Icon = "sliders-horizontal", Build = buildControls },
+    { Name = "Selection", Icon = "mouse-pointer-click", Build = buildSelection },
+    { Name = "Look", Icon = "paintbrush", Build = buildLook },
+    { Name = "Input", Icon = "keyboard", Build = buildInput },
+}) do
+    page.Build(Main:CreateSubTab({ Name = page.Name, Icon = page.Icon }))
+end
 
 -- Config tab ---------------------------------------------------------
 -- What a real script keeps in its settings: the options that drive the

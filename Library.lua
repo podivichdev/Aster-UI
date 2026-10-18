@@ -5009,6 +5009,275 @@ function Library:Dialog(opts)
     end
 end
 
+-- A draggable label: Obsidian's watermark chip rebuilt with the window's own
+-- colours, font and UI scale, so it follows every theme change. It lives in
+-- the newest window's screen gui (above the window body and its dim, below
+-- the pop-out layer, the toggle button, the tooltip and the cursor), drags
+-- with mouse or touch, and is destroyed together with the window.
+Library._draggableLabels = {}
+
+function Library:AddDraggableLabel(...)
+    local params = select(1, ...)
+    local text, icon, iconPosition
+    if typeof(params) == "table" then
+        text = params.Text
+        icon = params.Icon
+        iconPosition = params.IconPosition
+    elseif typeof(params) == "string" then
+        text = params
+        icon = select(2, ...)
+        iconPosition = select(3, ...)
+    end
+    if typeof(iconPosition) ~= "string" then
+        iconPosition = "left"
+    end
+    iconPosition = string.lower(iconPosition)
+    if iconPosition ~= "right" then
+        iconPosition = "left"
+    end
+
+    local window = Library.Windows[#Library.Windows]
+    if not window or not window.Gui then
+        warn("[Aster UI] AddDraggableLabel needs a window: create one first.")
+        return nil
+    end
+    local gui = window.Gui
+    local offset = Vector2.new(6, 6)
+
+    local entry = {
+        Connections = {},
+        Destroyed = false,
+    }
+
+    local pill = create("TextButton", {
+        Name = "DraggableLabel",
+        Size = UDim2.fromOffset(0, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        BackgroundColor3 = Theme.Background,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 5,
+        Parent = gui,
+    })
+    entry.Label = pill
+
+    corner(pill, UDim.new(0, 6))
+    stroke(pill, Theme.Stroke)
+    local pad = padding(pill, 12, 12, 6, 6)
+    local scale = create("UIScale", { Scale = window:GetUIScale(), Parent = pill })
+    entry._scale = scale
+
+    local textLabel = label({
+        Size = UDim2.fromOffset(0, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Text = text ~= nil and tostring(text) or "",
+        TextSize = 13,
+        TextTruncate = Enum.TextTruncate.None,
+        ZIndex = 2,
+        Parent = pill,
+    })
+
+    local iconImage
+    local function hasIcon()
+        return icon ~= nil and tostring(icon):match("%S") ~= nil
+    end
+
+    -- The pill grows a 34px strip on the icon's side and the icon sits in it,
+    -- the same layout Obsidian uses.
+    local function updateIconLayout()
+        local filled = hasIcon()
+        pad.PaddingLeft = UDim.new(0, (filled and iconPosition == "left") and 34 or 12)
+        pad.PaddingRight = UDim.new(0, (filled and iconPosition == "right") and 34 or 12)
+        if iconImage then
+            if iconPosition == "left" then
+                iconImage.AnchorPoint = Vector2.new(0, 0.5)
+                iconImage.Position = UDim2.new(0, -22, 0.5, 0)
+            else
+                iconImage.AnchorPoint = Vector2.new(1, 0.5)
+                iconImage.Position = UDim2.new(1, 22, 0.5, 0)
+            end
+        end
+    end
+
+    local function applyCurrentIcon()
+        if hasIcon() then
+            iconImage = iconImage or create("ImageLabel", {
+                Name = "Icon",
+                BackgroundTransparency = 1,
+                ImageColor3 = Theme.Text,
+                Size = UDim2.fromOffset(16, 16),
+                ZIndex = 2,
+                Parent = pill,
+            })
+            applyIcon(iconImage, icon, true)
+        end
+        if iconImage then
+            iconImage.Visible = hasIcon()
+        end
+        updateIconLayout()
+    end
+
+    local dragging = false
+    local dragOrigin = Vector2.zero
+    local dragStart = Vector2.zero
+
+    local function placeAt(point)
+        local current = scale.Scale
+        local bound = (gui.AbsoluteSize - pill.AbsoluteSize) / current
+        offset = Vector2.new(
+            math.clamp(point.X, 0, math.max(bound.X, 0)),
+            math.clamp(point.Y, 0, math.max(bound.Y, 0))
+        )
+        pill.Position = UDim2.fromOffset(offset.X, offset.Y)
+    end
+
+    table.insert(entry.Connections, pill.InputBegan:Connect(function(input)
+        if entry.Destroyed or not isPress(input) then
+            return
+        end
+        dragging = true
+        dragOrigin = offset
+        dragStart = pointerPosition()
+    end))
+
+    local dragChanged = UserInputService.InputChanged:Connect(function(input)
+        if entry.Destroyed or not dragging or not isMove(input) then
+            return
+        end
+        placeAt(dragOrigin + (pointerPosition() - dragStart) / scale.Scale)
+    end)
+    local dragEnded = UserInputService.InputEnded:Connect(function(input)
+        if entry.Destroyed or not dragging then
+            return
+        end
+        if isPress(input) then
+            dragging = false
+        end
+    end)
+    table.insert(entry.Connections, dragChanged)
+    table.insert(entry.Connections, dragEnded)
+    table.insert(window._connections, dragChanged)
+    table.insert(window._connections, dragEnded)
+
+    function entry:SetText(newText)
+        textLabel.Text = newText ~= nil and tostring(newText) or ""
+    end
+
+    function entry:SetIcon(newIcon)
+        icon = newIcon
+        applyCurrentIcon()
+    end
+
+    function entry:SetIconPosition(newPosition)
+        iconPosition = (typeof(newPosition) == "string" and string.lower(newPosition) == "right") and "right" or "left"
+        updateIconLayout()
+    end
+
+    function entry:SetVisible(visible)
+        pill.Visible = visible ~= false
+    end
+
+    function entry:Destroy()
+        if entry.Destroyed then
+            return
+        end
+        entry.Destroyed = true
+        for _, connection in ipairs(entry.Connections) do
+            pcall(function()
+                connection:Disconnect()
+            end)
+        end
+        table.clear(entry.Connections)
+        for index, item in ipairs(Library._draggableLabels) do
+            if item == entry then
+                table.remove(Library._draggableLabels, index)
+                break
+            end
+        end
+        pill:Destroy()
+    end
+
+    applyCurrentIcon()
+    table.insert(Library._draggableLabels, entry)
+
+    -- Starts at the top-left corner, dropped below whatever label is already
+    -- there (the same stacking Obsidian uses). One frame may pass first so
+    -- the AutomaticSize has measured the pill.
+    local function firstFreeSpot()
+        if pill.AbsoluteSize.X <= 0 then
+            pcall(function()
+                RunService.RenderStepped:Wait()
+            end)
+        end
+        local current = scale.Scale
+        local size = pill.AbsoluteSize / current
+        if size.X <= 0 then
+            size = Vector2.new(150, 34)
+        end
+        local bounds = gui.AbsoluteSize / current
+        local margin = 6
+        local x, y = margin, margin
+        local column = size.X
+        for _ = 1, 256 do
+            local hitPosition, hitSize
+            for _, other in ipairs(Library._draggableLabels) do
+                local otherPill = other.Label
+                if other ~= entry and otherPill and otherPill.Parent and otherPill.Visible then
+                    local otherPosition = (otherPill.AbsolutePosition - gui.AbsolutePosition) / current
+                    local otherSize = otherPill.AbsoluteSize / current
+                    if x < otherPosition.X + otherSize.X and x + size.X > otherPosition.X
+                        and y < otherPosition.Y + otherSize.Y and y + size.Y > otherPosition.Y then
+                        hitPosition, hitSize = otherPosition, otherSize
+                        break
+                    end
+                end
+            end
+            if not hitPosition then
+                return Vector2.new(x, y)
+            end
+            column = math.max(column, hitSize.X)
+            local nextY = hitPosition.Y + hitSize.Y + margin
+            if nextY + size.Y > bounds.Y - margin then
+                local nextX = x + column + margin
+                if nextX + size.X > bounds.X - margin then
+                    return Vector2.new(x, y)
+                end
+                x, y = nextX, margin
+                column = size.X
+            else
+                y = nextY
+            end
+        end
+        return Vector2.new(x, y)
+    end
+    placeAt(firstFreeSpot())
+
+    entry._reclamp = function()
+        placeAt(offset)
+    end
+
+    return entry
+end
+
+-- Keeps every draggable label on the newest window's UI scale.
+function Library._syncDraggableLabels()
+    local window = Library.Windows[#Library.Windows]
+    local target = (window and window:GetUIScale()) or 1
+    for index = #Library._draggableLabels, 1, -1 do
+        local entry = Library._draggableLabels[index]
+        local pill = entry and entry.Label
+        if not entry or entry.Destroyed or not pill or not pill.Parent then
+            table.remove(Library._draggableLabels, index)
+        else
+            entry._scale.Scale = target
+            if entry._reclamp then
+                entry._reclamp()
+            end
+        end
+    end
+end
+
 local function isShown(object, stopAt, point)
     local child = object
     while child and child ~= stopAt and child:IsA("GuiObject") do
@@ -6368,6 +6637,7 @@ function Window:SetUIScale(value)
             self:_clampToScreen()
         end
     end)
+    Library._syncDraggableLabels()
 end
 
 function Window:GetUIScale()
@@ -19872,8 +20142,17 @@ end
 
 Window.Unload = Window.Destroy
 
--- Unloads every window the library created.
+-- Unloads every window the library created, and with them anything the
+-- library put on screen itself (draggable labels).
 function Library:Destroy()
+    for index = #Library._draggableLabels, 1, -1 do
+        local entry = Library._draggableLabels[index]
+        if entry then
+            pcall(function()
+                entry:Destroy()
+            end)
+        end
+    end
     for index = #Library.Windows, 1, -1 do
         local window = Library.Windows[index]
         if window then

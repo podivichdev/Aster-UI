@@ -191,11 +191,26 @@ Window:Destroy()
 ```lua
 Aster:CreateWindow(opts)          Aster.Flags
 Aster:Notify(opts)                Aster.ThemePresets
-Aster:SetTheme(name)              Aster.Windows
-Aster:SetDefaultTheme(name)       Aster.DensityModes  -- Compact / Default / Comfortable
-Aster:SetDensity(mode)            Aster:PreloadIcons()
-Aster:SetCornerRadius(px)         Aster:LoadFont({ Name = "ValleySans" })
-Aster:Destroy()
+Aster:AddDraggableLabel(...)      Aster.Windows
+Aster:SetTheme(name)              Aster.DensityModes  -- Compact / Default / Comfortable
+Aster:SetDefaultTheme(name)       Aster:PreloadIcons()
+Aster:SetDensity(mode)            Aster:LoadFont({ Name = "ValleySans" })
+Aster:SetCornerRadius(px)         Aster:Destroy()
+```
+
+### Draggable labels
+
+`Aster:AddDraggableLabel(text, icon, iconPosition)` drops a small draggable pill on screen — Obsidian's watermark, rebuilt with the window's colours, font and UI scale, so it follows every theme change. Create a window first: the label lives in the window's screen gui (above the window body, below the pop-outs, the toggle button, the tooltip and the cursor) and is destroyed together with it. Extra labels stack below the ones already there instead of overlapping.
+
+```lua
+local Watermark = Aster:AddDraggableLabel("FPS: 240 | PING: 32 ms")
+-- Aster:AddDraggableLabel({ Text = "Watermark", Icon = "activity" })  -- table form
+
+Watermark:SetText("FPS: 240 | PING: 24 ms")   -- refresh it on a timer
+Watermark:SetIcon("activity")                 -- lucide name, asset id or URL
+Watermark:SetIconPosition("right")            -- "left" (default) or "right"
+Watermark:SetVisible(false)
+Watermark:Destroy()
 ```
 
 ## Themes

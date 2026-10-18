@@ -1038,13 +1038,66 @@ local KEY_NAMES = {
     [Enum.KeyCode.Return] = "Enter",
     [Enum.KeyCode.Escape] = "Esc",
     [Enum.KeyCode.Backspace] = "Backspace",
+    [Enum.UserInputType.MouseButton1] = "MB1",
+    [Enum.UserInputType.MouseButton2] = "MB2",
+    [Enum.UserInputType.MouseButton3] = "MB3",
 }
 
 local function keyName(keyCode)
-    if keyCode == nil then
+    if typeof(keyCode) ~= "EnumItem" then
         return "None"
     end
     return KEY_NAMES[keyCode] or keyCode.Name
+end
+
+-- Keybinds hold a KeyCode for keyboard keys or a UserInputType for the three
+-- mouse buttons. MB1..MB3 are the display and config names.
+local Keybinds = {
+    Mouse = {
+        [Enum.UserInputType.MouseButton1] = true,
+        [Enum.UserInputType.MouseButton2] = true,
+        [Enum.UserInputType.MouseButton3] = true,
+    },
+    Aliases = {
+        MB1 = Enum.UserInputType.MouseButton1,
+        MB2 = Enum.UserInputType.MouseButton2,
+        MB3 = Enum.UserInputType.MouseButton3,
+    },
+}
+
+-- The value a keybind stores for a user input: the KeyCode for keyboard, the
+-- UserInputType for a mouse button. nil for anything not bindable.
+function Keybinds.FromInput(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        return input.KeyCode
+    end
+    if Keybinds.Mouse[input.UserInputType] then
+        return input.UserInputType
+    end
+    return nil
+end
+
+-- Accepts a bind as an EnumItem (KeyCode or mouse UserInputType) or by name:
+-- "E", "MouseButton2", "MB2".
+function Keybinds.Resolve(value)
+    if typeof(value) == "EnumItem" then
+        if value.EnumType == Enum.UserInputType and not Keybinds.Mouse[value] then
+            return nil
+        end
+        return value
+    end
+    if type(value) ~= "string" then
+        return nil
+    end
+    local key = Enum.KeyCode[value]
+    if key then
+        return key
+    end
+    local inputType = Enum.UserInputType[value]
+    if inputType and Keybinds.Mouse[inputType] then
+        return inputType
+    end
+    return Keybinds.Aliases[value] or Keybinds.Aliases[string.upper(value)]
 end
 
 local function safeCall(callback, ...)
@@ -2962,8 +3015,8 @@ end
 function Tab:Keybind(opts)
     local frame, frameStroke, _, titleLabel, descLabel
     opts, frame, frameStroke, _, titleLabel, descLabel = beginElement(self, opts, { Title = "Name", Description = "Desc", CurrentKeybind = "Default", Value = "Default" }, "Frame", 110, "Keybind")
-    if type(opts.Default) == "string" then
-        opts.Default = Enum.KeyCode[opts.Default]
+    if opts.Default ~= nil then
+        opts.Default = Keybinds.Resolve(opts.Default)
     end
     local compact = metricsOf(self).Compact
     local chipHeight = metricsOf(self).Chip
@@ -3013,39 +3066,61 @@ function Tab:Keybind(opts)
 
     function self_:Set(keyCode, silent)
         local wasListening = self_.Listening
-        self_.Value = keyCode
+        self_.Value = Keybinds.Resolve(keyCode)
         self_.Listening = false
         render()
         if not wasListening then
             flashStroke(frameStroke)
         end
         if not silent then
-            safeCall(opts.OnChanged, keyCode)
+            safeCall(opts.OnChanged, self_.Value)
         end
     end
 
     chip.MouseButton1Click:Connect(function()
+        -- The release that closes a mouse-button capture is the same click
+        -- that opened it; it must not toggle listening again.
+        local wasCapture = self_._capturedBind ~= nil
+            or os.clock() - (self_._capturedAt or 0) < 0.4
+        self_._capturedBind = nil
+        if wasCapture and not self_.Listening then
+            return
+        end
         self_.Listening = not self_.Listening
         render()
     end)
 
     self.Window:_listen("Began", function(input, gameProcessed)
-        if input.UserInputType ~= Enum.UserInputType.Keyboard then
+        local bind = Keybinds.FromInput(input)
+        if bind == nil then
             return
         end
         if self_.Listening then
-            self.Window._consumedKey = input.KeyCode
+            self.Window._consumedKey = bind
             self.Window._consumedAt = os.clock()
-            if input.KeyCode == Enum.KeyCode.Escape then
+            if bind == Enum.KeyCode.Escape then
                 self_.Listening = false
                 render()
             else
-                self_:Set(input.KeyCode)
+                if Keybinds.Mouse[bind] then
+                    self_._capturedBind = bind
+                    self_._capturedAt = os.clock()
+                end
+                self_:Set(bind)
             end
             return
         end
-        if not gameProcessed and self_.Value ~= nil and input.KeyCode == self_.Value then
-            safeCall(opts.Callback, input.KeyCode)
+        -- Mouse binds stay quiet while the window is open, so clicks meant
+        -- for the UI never fire the bound action.
+        if not gameProcessed and self_.Value ~= nil and bind == self_.Value
+            and not (Keybinds.Mouse[bind] and self.Window.Open and not self.Window.Minimized) then
+            safeCall(opts.Callback, bind)
+        end
+    end, self_)
+
+    self.Window:_listen("Ended", function(input)
+        if self_._capturedBind ~= nil and Keybinds.FromInput(input) == self_._capturedBind then
+            self_._capturedBind = nil
         end
     end, self_)
 
@@ -4363,9 +4438,7 @@ Window.__index = Window
 function Library.Window(_, opts)
     opts = normalize(opts, { Name = "Title", LoadingSubtitle = "Subtitle", ToggleUIKeybind = "Keybind" })
 
-    if type(opts.Keybind) == "string" then
-        opts.Keybind = Enum.KeyCode[opts.Keybind]
-    end
+    opts.Keybind = Keybinds.Resolve(opts.Keybind)
     local size = opts.Size or UDim2.fromOffset(760, 520)
     local keybind = opts.Keybind or Enum.KeyCode.RightControl
 
@@ -4841,9 +4914,10 @@ function Library.Window(_, opts)
         if gameProcessed then
             return
         end
-        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == self.Keybind then
+        local bind = Keybinds.FromInput(input)
+        if bind ~= nil and bind == self.Keybind then
             task.defer(function()
-                local consumed = self._consumedKey == input.KeyCode and os.clock() - (self._consumedAt or 0) < 0.2
+                local consumed = self._consumedKey == bind and os.clock() - (self._consumedAt or 0) < 0.2
                 self._consumedKey = nil
                 if not consumed and not self._destroyed then
                     if self.Minimized then
@@ -7266,7 +7340,7 @@ local function deserializeFlag(element, entry, silent)
     local kind = element._type
     local value = entry.Value
     if kind == "Keybind" then
-        element:Set(type(value) == "string" and Enum.KeyCode[value] or nil, silent)
+        element:Set(Keybinds.Resolve(value), silent)
     elseif kind == "ColorPicker" then
         local color = colorFromValue(value)
         if color then
@@ -19943,10 +20017,10 @@ function Window:_restoreMouseIcon()
     end
 end
 
-function Window:SetKeybind(keyCode)
-    self.Keybind = keyCode
+function Window:SetKeybind(key)
+    self.Keybind = Keybinds.Resolve(key)
     if self._keyChipLabel then
-        self._keyChipLabel.Text = keyName(keyCode)
+        self._keyChipLabel.Text = keyName(self.Keybind)
     end
 end
 

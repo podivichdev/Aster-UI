@@ -58,7 +58,7 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `Title` (alias `Name`) | string | Window title. |
 | `Subtitle` | string | Small subtitle under the title. |
 | `LoadingTitle` / `LoadingSubtitle` | string | Text on the loading splash. |
-| `Keybind` (alias `ToggleUIKeybind`) | `Enum.KeyCode` / string | Show/hide key. Default `RightControl`. |
+| `Keybind` (alias `ToggleUIKeybind`) | `Enum.KeyCode` / mouse `Enum.UserInputType` / string | Show/hide key. Strings like `"E"`, `"RightControl"`, `"MouseButton2"` or `"MB2"`. Default `RightControl`. |
 | `UnlockMouseWhileOpen` | bool | Keeps the cursor usable while the window is open, even when the game locks it to the centre (first person). Default `true`. |
 | `ShowCustomCursor` | bool | While the window is open, draws the library's own cross cursor and hides the system one; with it off the system cursor is forced visible instead. Keeps the pointer visible in games that hide it to aim. Default `true`. |
 | `Size` | `UDim2` | Default `760x520`. |
@@ -116,7 +116,7 @@ All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeNa
 | `Tab:Stepper({ Name, Desc, Min, Max, Step, Suffix, Default, Flag, Callback })` | `−` / `+` number stepper. |
 | `Tab:Dropdown({ Name, Desc, Options, Default, Multi, MaxRows, Stacked, Flag, Callback })` | Dropdown. `Multi = true` takes a table `Default` and returns a table to `Callback`. |
 | `Tab:Input({ Name, Desc, Default, Placeholder, Numeric, Icon, Flag, Callback })` | Text box; `Numeric = true` parses numbers (`Callback(value, enterPressed)`). |
-| `Tab:Keybind({ Name, Desc, Default, Flag, Callback, OnChanged })` | Key picker; `Default = "E"` or a `KeyCode`. `Callback` fires on press, `OnChanged` on rebind. |
+| `Tab:Keybind({ Name, Desc, Default, Flag, Callback, OnChanged })` | Key picker. Accepts keyboard keys and mouse buttons: `Default = "E"`, a `KeyCode`, `Enum.UserInputType.MouseButton2` or `"MB2"` (`MB1`/`MB2`/`MB3`). `Callback` fires on press (key stays quiet while the window is open). While rebinding, `Esc` cancels. `OnChanged` on rebind. |
 | `Tab:ColorPicker({ Name, Desc, Default = Color3, Flag, Callback })` | SV panel + hue slider + hex chip. |
 | `Tab:Progress({ Name, Desc, Default, Color, TextColor, Flag })` | Progress bar. |
 | `Tab:OrderList({ Name, Desc, Items, MaxRows, Numbered, Arrows, Flag, Callback })` | Drag (or arrow) to reorder. |
@@ -155,7 +155,8 @@ toggle:Set(true, true)   -- true = silent (no Callback)
 ```lua
 -- visibility
 Window:Toggle(open)  Window:Minimize()  Window:Restore()  Window:SetMinimized(bool)
-Window:SetKeybind(Enum.KeyCode.X)  Window:SetKeepOnScreen(bool)  Window:SetTransparent(bool)
+Window:SetKeybind(Enum.KeyCode.X)  -- or "MB2" / Enum.UserInputType.MouseButton2
+Window:SetKeepOnScreen(bool)  Window:SetTransparent(bool)
 Window:SetUnlockMouseWhileOpen(bool)  Window:SetShowCustomCursor(bool)
 Window:SelectTab(tab)  Window:SetHideName(bool)  Window:SetHideAvatar(bool)
 

@@ -5137,7 +5137,6 @@ function Library:AddDraggableLabel(...)
 
     local measureClampQueued = false
     local function placeAt(point)
-        local current = scale.Scale
         local viewport = gui.AbsoluteSize
         if viewport.X <= 0 or viewport.Y <= 0 then
             -- The screen gui has no size on its first frames (the window keeps
@@ -5156,7 +5155,11 @@ function Library:AddDraggableLabel(...)
                 end)
             end
         else
-            local bound = (viewport - pill.AbsoluteSize) / current
+            -- A UIScale enlarges an element without moving it: offsets stay in
+            -- plain pixels, so the bound is the screen minus the rendered
+            -- pill. Dividing by the scale as well left a dead strip on the
+            -- right and bottom edges.
+            local bound = viewport - pill.AbsoluteSize
             offset = Vector2.new(
                 math.clamp(point.X, 0, math.max(bound.X, 0)),
                 math.clamp(point.Y, 0, math.max(bound.Y, 0))
@@ -5178,7 +5181,8 @@ function Library:AddDraggableLabel(...)
         if entry.Destroyed or not dragging or not isMove(input) then
             return
         end
-        placeAt(dragOrigin + (pointerPosition() - dragStart) / scale.Scale)
+        -- The pill's own scale does not move its offset: plain pixel delta.
+        placeAt(dragOrigin + (pointerPosition() - dragStart))
     end)
     local dragEnded = UserInputService.InputEnded:Connect(function(input)
         if entry.Destroyed or not dragging then
@@ -5248,12 +5252,11 @@ function Library:AddDraggableLabel(...)
     -- uses); with one it goes exactly where it was asked to.
     local function firstFreeSpot()
         measurePill()
-        local current = scale.Scale
-        local size = pill.AbsoluteSize / current
+        local size = pill.AbsoluteSize
         if size.X <= 0 then
-            size = Vector2.new(150, 34)
+            size = Vector2.new(150, 34) * scale.Scale
         end
-        local bounds = gui.AbsoluteSize / current
+        local bounds = gui.AbsoluteSize
         local margin = 6
         local x, y = margin, margin
         local column = size.X
@@ -5262,8 +5265,8 @@ function Library:AddDraggableLabel(...)
             for _, other in ipairs(Library._draggableLabels) do
                 local otherPill = other.Label
                 if other ~= entry and otherPill and otherPill.Parent and otherPill.Visible then
-                    local otherPosition = (otherPill.AbsolutePosition - gui.AbsolutePosition) / current
-                    local otherSize = otherPill.AbsoluteSize / current
+                    local otherPosition = otherPill.AbsolutePosition - gui.AbsolutePosition
+                    local otherSize = otherPill.AbsoluteSize
                     if x < otherPosition.X + otherSize.X and x + size.X > otherPosition.X
                         and y < otherPosition.Y + otherSize.Y and y + size.Y > otherPosition.Y then
                         hitPosition, hitSize = otherPosition, otherSize

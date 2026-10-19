@@ -42,6 +42,11 @@ Library.Windows = {}
 -- off: every text element created while it is false gets AutoLocalize = false.
 Library.AutoTranslate = true
 
+-- ForceCheckbox swaps every Toggle's switch for a checkbox, like Obsidian's
+-- Library.ForceCheckbox. Set it through CreateWindow's ForceCheckbox option:
+-- toggles created after that render as tick boxes.
+Library.ForceCheckbox = false
+
 -- AlwaysOnTop lifts the UI above Roblox's core blur (the overlay behind the
 -- Roblox menu) through a hidden ScreenGui property. It is executor-only; where
 -- the executor does not expose it the pcall simply does nothing. Same approach
@@ -1662,55 +1667,97 @@ function Tab:Toggle(opts)
     local button, buttonStroke
     opts, button, buttonStroke = beginElement(self, opts, { Title = "Name", Description = "Desc", CurrentValue = "Default", Value = "Default" }, "TextButton", 56, "Toggle")
 
-    local pill = create("Frame", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -14, 0.5, 0),
-        Size = TOUCH and UDim2.fromOffset(44, 24) or UDim2.fromOffset(36, 20),
-        BackgroundColor3 = Theme.Surface3,
-        BorderSizePixel = 0,
-        Parent = button,
-    })
-    corner(pill, UDim.new(1, 0))
-    stroke(pill, Theme.Stroke)
-
-    local knob = create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 3, 0.5, 0),
-        Size = TOUCH and UDim2.fromOffset(18, 18) or UDim2.fromOffset(14, 14),
-        BackgroundColor3 = Theme.Muted,
-        BorderSizePixel = 0,
-        Parent = pill,
-    })
-    corner(knob, UDim.new(1, 0))
-    local pillGlow = create("ImageLabel", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.new(1, 24, 1, 24),
-        BackgroundTransparency = 1,
-        Image = Assets.Glow,
-        ImageColor3 = Theme.Accent,
-        ImageTransparency = 1,
-        ZIndex = 0,
-        Parent = pill,
-    })
-
     local self_ = { Value = opts.Default == true }
+    local render
 
-    local function render(animate)
-        local on = self_.Value
-        local duration = animate and 0.25 or 0
-        tween(pill, { BackgroundColor3 = on and Theme.Accent or Theme.Surface3 }, duration)
-        tween(pillGlow, { ImageTransparency = on and 0.75 or 1 }, duration)
-        local knobSize = TOUCH and 18 or 14
-        tween(knob, {
-            Position = on and UDim2.new(0, (TOUCH and 44 or 36) - 3 - knobSize, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
-            BackgroundColor3 = on and Theme.AccentDark or Theme.Muted,
-        }, duration, Enum.EasingStyle.Back)
-        if animate then
-            tween(knob, { Size = UDim2.fromOffset(knobSize + 4, knobSize - 2) }, 0.08)
-            task.delay(0.08, function()
-                tween(knob, { Size = UDim2.fromOffset(knobSize, knobSize) }, 0.2, Enum.EasingStyle.Back)
-            end)
+    if Library.ForceCheckbox then
+        -- ForceCheckbox: the switch becomes a tick box, styled after the
+        -- library's multi-select checkboxes.
+        local box = create("Frame", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -14, 0.5, 0),
+            Size = TOUCH and UDim2.fromOffset(24, 24) or UDim2.fromOffset(20, 20),
+            BackgroundColor3 = Theme.Surface2,
+            BorderSizePixel = 0,
+            Parent = button,
+        })
+        corner(box, UDim.new(0, 5))
+        local boxStroke = stroke(box, Theme.Stroke)
+        local check = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = TOUCH and UDim2.fromOffset(14, 14) or UDim2.fromOffset(12, 12),
+            BackgroundTransparency = 1,
+            ImageColor3 = Theme.AccentDark,
+            ImageTransparency = 1,
+            ScaleType = Enum.ScaleType.Fit,
+            Parent = box,
+        })
+        applyIcon(check, "check")
+        local checkScale = create("UIScale", { Parent = check })
+
+        render = function(animate)
+            local on = self_.Value
+            local duration = animate and 0.18 or 0
+            tween(box, { BackgroundColor3 = on and Theme.Accent or Theme.Surface2 }, duration)
+            tween(boxStroke, { Color = on and Theme.Accent or Theme.Stroke }, duration)
+            tween(check, { ImageTransparency = on and 0 or 1 }, duration)
+            if animate and on then
+                checkScale.Scale = 0.5
+                tween(checkScale, { Scale = 1 }, 0.3, Enum.EasingStyle.Back)
+            else
+                checkScale.Scale = 1
+            end
+        end
+    else
+        local pill = create("Frame", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -14, 0.5, 0),
+            Size = TOUCH and UDim2.fromOffset(44, 24) or UDim2.fromOffset(36, 20),
+            BackgroundColor3 = Theme.Surface3,
+            BorderSizePixel = 0,
+            Parent = button,
+        })
+        corner(pill, UDim.new(1, 0))
+        stroke(pill, Theme.Stroke)
+
+        local knob = create("Frame", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 3, 0.5, 0),
+            Size = TOUCH and UDim2.fromOffset(18, 18) or UDim2.fromOffset(14, 14),
+            BackgroundColor3 = Theme.Muted,
+            BorderSizePixel = 0,
+            Parent = pill,
+        })
+        corner(knob, UDim.new(1, 0))
+        local pillGlow = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.new(1, 24, 1, 24),
+            BackgroundTransparency = 1,
+            Image = Assets.Glow,
+            ImageColor3 = Theme.Accent,
+            ImageTransparency = 1,
+            ZIndex = 0,
+            Parent = pill,
+        })
+
+        render = function(animate)
+            local on = self_.Value
+            local duration = animate and 0.25 or 0
+            tween(pill, { BackgroundColor3 = on and Theme.Accent or Theme.Surface3 }, duration)
+            tween(pillGlow, { ImageTransparency = on and 0.75 or 1 }, duration)
+            local knobSize = TOUCH and 18 or 14
+            tween(knob, {
+                Position = on and UDim2.new(0, (TOUCH and 44 or 36) - 3 - knobSize, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
+                BackgroundColor3 = on and Theme.AccentDark or Theme.Muted,
+            }, duration, Enum.EasingStyle.Back)
+            if animate then
+                tween(knob, { Size = UDim2.fromOffset(knobSize + 4, knobSize - 2) }, 0.08)
+                task.delay(0.08, function()
+                    tween(knob, { Size = UDim2.fromOffset(knobSize, knobSize) }, 0.2, Enum.EasingStyle.Back)
+                end)
+            end
         end
     end
 
@@ -4497,6 +4544,10 @@ function Library.Window(_, opts)
 
     if type(opts.AutoTranslate) == "boolean" then
         Library.AutoTranslate = opts.AutoTranslate
+    end
+
+    if type(opts.ForceCheckbox) == "boolean" then
+        Library.ForceCheckbox = opts.ForceCheckbox
     end
 
     opts.Keybind = Keybinds.Resolve(opts.Keybind)

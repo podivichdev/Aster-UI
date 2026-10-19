@@ -4730,8 +4730,9 @@ function Library.Window(_, opts)
         })
         applyIcon(logo, opts.Icon or Assets.Logo, true)
     end
-    -- No logo: the title and subtitle start where the icon would have been.
-    local TEXT_X = opts.Icon ~= false and 56 or 14
+    -- No logo: the title and subtitle take its place, aligned with the tab
+    -- labels' column.
+    local TEXT_X = opts.Icon ~= false and 56 or 22
     local subtitle = opts.Version or opts.Subtitle
     label({
         Position = UDim2.new(0, TEXT_X, 0.5, subtitle and -15 or -9),

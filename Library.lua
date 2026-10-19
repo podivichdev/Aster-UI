@@ -37,6 +37,11 @@ local Library = {}
 Library.Flags = {}
 Library.Windows = {}
 
+-- Roblox auto-translates GUI text when the game has localization enabled.
+-- CreateWindow's AutoTranslate option (or Window:SetAutoTranslate) turns that
+-- off: every text element created while it is false gets AutoLocalize = false.
+Library.AutoTranslate = true
+
 -- "None" as an icon name means an explicit no-icon: elements that reserve a
 -- slot for an icon drop it and their text sits where the icon would be. The
 -- sentinel is `false` (not nil) so `icon or fallback` chains keep their
@@ -679,6 +684,12 @@ local function create(className, props, children)
         if key ~= "Parent" then
             inst[key] = value
         end
+    end
+    if not Library.AutoTranslate and (className == "TextLabel" or className == "TextButton" or className == "TextBox") then
+        -- The UI opted out of Roblox's automatic translation.
+        pcall(function()
+            inst.AutoLocalize = false
+        end)
     end
     bindColors(inst, props)
     if children then
@@ -4464,6 +4475,10 @@ Window.__index = Window
 
 function Library.Window(_, opts)
     opts = normalize(opts, { Name = "Title", LoadingSubtitle = "Subtitle", ToggleUIKeybind = "Keybind" })
+
+    if type(opts.AutoTranslate) == "boolean" then
+        Library.AutoTranslate = opts.AutoTranslate
+    end
 
     opts.Keybind = Keybinds.Resolve(opts.Keybind)
     local size = opts.Size or UDim2.fromOffset(760, 520)
@@ -20147,6 +20162,21 @@ end
 function Window:SetShowCustomCursor(enabled)
     self.ShowCustomCursor = enabled ~= false
     self:_refreshCursor()
+end
+
+-- Roblox auto-translates GUI text when the game has localization enabled.
+-- SetAutoTranslate(false) keeps this window's text as written, now and for
+-- everything created later; (true) hands it back to Roblox.
+function Window:SetAutoTranslate(enabled)
+    enabled = enabled ~= false
+    Library.AutoTranslate = enabled
+    for _, descendant in ipairs(self.Gui:GetDescendants()) do
+        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+            pcall(function()
+                descendant.AutoLocalize = enabled
+            end)
+        end
+    end
 end
 
 -- While the window is open the library draws its own cursor and keeps

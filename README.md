@@ -61,6 +61,7 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `Keybind` (alias `ToggleUIKeybind`) | `Enum.KeyCode` / mouse `Enum.UserInputType` / string | Show/hide key. Strings like `"E"`, `"RightControl"`, `"MouseButton2"` or `"MB2"`. Default `RightControl`. |
 | `UnlockMouseWhileOpen` | bool | Keeps the cursor usable while the window is open, even when the game locks it to the centre (first person). Default `true`. |
 | `ShowCustomCursor` | bool | While the window is open, draws the library's own cross cursor and hides the system one; with it off the system cursor is forced visible instead. Keeps the pointer visible in games that hide it to aim. Default `true`. |
+| `AutoTranslate` | bool | Whether Roblox may auto-translate the UI. `false` sets `AutoLocalize = false` on every text element, so text reads exactly as written. Default `true` (can also be preset as `Aster.AutoTranslate = false`). |
 | `Size` | `UDim2` | Default `760x520`. |
 | `Theme` / `DefaultTheme` | string | Theme name from `Aster.ThemePresets`. Default `"Cybrion"`. |
 | `Weather` | string | Backdrop weather: `Snow`, `Rain`, `Hell Fire`, `Sakura`, `Fireflies`, `Matrix`, `None`. Default `Matrix`. |
@@ -157,7 +158,7 @@ toggle:Set(true, true)   -- true = silent (no Callback)
 Window:Toggle(open)  Window:Minimize()  Window:Restore()  Window:SetMinimized(bool)
 Window:SetKeybind(Enum.KeyCode.X)  -- or "MB2" / Enum.UserInputType.MouseButton2
 Window:SetKeepOnScreen(bool)  Window:SetTransparent(bool)
-Window:SetUnlockMouseWhileOpen(bool)  Window:SetShowCustomCursor(bool)
+Window:SetUnlockMouseWhileOpen(bool)  Window:SetShowCustomCursor(bool)  Window:SetAutoTranslate(bool)
 Window:SelectTab(tab)  Window:SetHideName(bool)  Window:SetHideAvatar(bool)
 
 -- look

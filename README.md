@@ -97,7 +97,7 @@ local Sub = Tab:SubTab({ Name = "Extra", Icon = "layers" })
 Tab:SelectSubTab(Sub)
 ```
 
-Icons are [Lucide](https://lucide.dev) names (`"house"`, `"settings"`, `"shield"`, `"sparkles"`, …), fetched once at runtime; the set tracks current Lucide names (e.g. `"house"`, not the older `"home"`).
+Icons are [Lucide](https://lucide.dev) names (`"house"`, `"settings"`, `"shield"`, `"sparkles"`, …), fetched once at runtime; the set tracks current Lucide names (e.g. `"house"`, not the older `"home"`). Passing `Icon = "None"` (any case) means no icon: the icon slot collapses and the text moves into its place.
 
 ## Widgets
 

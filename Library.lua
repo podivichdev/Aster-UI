@@ -37,6 +37,15 @@ local Library = {}
 Library.Flags = {}
 Library.Windows = {}
 
+-- "None" as an icon name means an explicit no-icon: elements that reserve a
+-- slot for an icon drop it and their text sits where the icon would be.
+local function cleanIcon(icon)
+    if type(icon) == "string" and icon:lower():gsub("^lucide:", "") == "none" then
+        return nil
+    end
+    return icon
+end
+
 local function normalize(source, map)
     local opts = {}
     if type(source) == "string" then
@@ -50,6 +59,9 @@ local function normalize(source, map)
         if opts[to] == nil and opts[from] ~= nil then
             opts[to] = opts[from]
         end
+    end
+    if opts.Icon ~= nil then
+        opts.Icon = cleanIcon(opts.Icon)
     end
     if opts.Range then
         opts.Min = opts.Min or opts.Range[1]
@@ -5118,6 +5130,7 @@ function Library:AddDraggableLabel(...)
         icon = select(2, ...)
         iconPosition = select(3, ...)
     end
+    icon = cleanIcon(icon)
     if typeof(startPosition) == "table" then
         local x = tonumber(startPosition.X or startPosition[1])
         local y = tonumber(startPosition.Y or startPosition[2])
@@ -5287,7 +5300,7 @@ function Library:AddDraggableLabel(...)
     end
 
     function entry:SetIcon(newIcon)
-        icon = newIcon
+        icon = cleanIcon(newIcon)
         applyCurrentIcon()
     end
 
@@ -6897,7 +6910,7 @@ function Window:_createOpenButton(opts)
         ZIndex = 31,
         Parent = pill,
     })
-    applyIcon(icon, opts.Icon or Assets.Logo, true)
+    applyIcon(icon, cleanIcon(opts.Icon) or Assets.Logo, true)
     label({
         Position = UDim2.fromOffset(28, 0),
         Size = UDim2.new(0, 0, 1, 0),
@@ -7010,7 +7023,7 @@ function Window:_createToggleButton(opts)
     self.ToggleButton = button
     self._toggleStroke = buttonStroke
     self._toggleIcon = icon
-    self:SetToggleButtonIcon(opts.Icon or "layout-grid")
+    self:SetToggleButtonIcon(cleanIcon(opts.Icon) or "layout-grid")
 
     local dragging, moved = false, false
     local grab = Vector2.zero
@@ -7074,7 +7087,7 @@ function Window:SetToggleButtonIcon(icon)
         return
     end
     image.Image = ""
-    applyIcon(image, icon)
+    applyIcon(image, cleanIcon(icon))
     if image.Image == "" then
         applyIcon(image, Assets.Logo)
     end
@@ -8719,7 +8732,7 @@ function Tab:Groupbox(opts, icon)
     end
     opts = normalize(opts, { Title = "Name" })
     if icon ~= nil and opts.Icon == nil then
-        opts.Icon = icon
+        opts.Icon = cleanIcon(icon)
     end
     local window = self.Window
     local set = self:_columns()
@@ -12330,7 +12343,7 @@ function Tab:SubTab(opts, icon)
     end
     opts = normalize(opts, { Title = "Name", Description = "Desc" })
     if icon ~= nil and opts.Icon == nil then
-        opts.Icon = icon
+        opts.Icon = cleanIcon(icon)
     end
     if not self._subTabs then
         self:_setupSubTabs()
@@ -14973,7 +14986,7 @@ end
 function Window:Tab(opts, icon)
     opts = normalize(opts, { Title = "Name", Description = "Desc" })
     if icon ~= nil and opts.Icon == nil then
-        opts.Icon = icon
+        opts.Icon = cleanIcon(icon)
     end
     local tab = setmetatable({
         Name = opts.Name or "Tab",

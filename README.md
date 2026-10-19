@@ -63,7 +63,7 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `ShowCustomCursor` | bool | While the window is open, draws the library's own cross cursor and hides the system one; with it off the system cursor is forced visible instead. Keeps the pointer visible in games that hide it to aim. Default `true`. |
 | `AutoTranslate` | bool | Whether Roblox may auto-translate the UI. `false` sets `AutoLocalize = false` on every text element, so text reads exactly as written. Default `true` (can also be preset as `Aster.AutoTranslate = false`). |
 | `AlwaysOnTop` | bool | Renders the UI above Roblox's core blur (the overlay behind the Roblox menu) through the hidden `OnTopOfCoreBlur` ScreenGui property. Executor-only; silently ignored where unsupported. Default `false`. |
-| `ForceCheckbox` | bool | Renders every `Toggle` as a checkbox instead of a switch, like Obsidian's `Library.ForceCheckbox`. Module-wide; toggles created after the option render as tick boxes. Default `false` (can also be set directly as `Aster.ForceCheckbox = true`). |
+| `ForceCheckbox` | bool | Renders every `Toggle` as a checkbox instead of a switch, like Obsidian's `Library.ForceCheckbox`. Module-wide; switching it converts live toggles in place (Theme Manager's **Toggle Style** dropdown, `Aster:SetForceCheckbox(bool)`, or a loaded config). Default `false` (can also be preset as `Aster.ForceCheckbox = true`). |
 | `Size` | `UDim2` | Default `760x520`. |
 | `Theme` / `DefaultTheme` | string | Theme name from `Aster.ThemePresets`. Default `"Cybrion"`. |
 | `Weather` | string | Backdrop weather: `Snow`, `Rain`, `Hell Fire`, `Sakura`, `Fireflies`, `Matrix`, `None`. Default `Matrix`. |
@@ -129,7 +129,7 @@ All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeNa
 | `Tab:Table(opts)` | Data table card. |
 | `Tab:Status(opts)` / `Tab:StatusList(opts)` / `Tab:Statuses(entries, shared)` | Live status rows with health colors. |
 | `Tab:ConfigManager({ Name, Side })` | Ready-made config manager UI (create / save / load / delete / rename / autoload / import / export). |
-| `Tab:ThemeManager({ Name, Side })` | Ready-made theme, background and weather picker UI. |
+| `Tab:ThemeManager({ Name, Side })` | Ready-made theme, background, weather and look-settings picker UI. |
 
 `Title`, `Description`, `CurrentValue` / `Value`, `CurrentOption`, `MultipleOptions`, `Values` and `Increment` are accepted as friendly aliases everywhere (`Title` → `Name`, `Desc` → `Name`'s desc field, `Value` → `Default`, `Step` → `Increment`, …).
 
@@ -201,6 +201,7 @@ Aster:SetDefaultTheme(name)       Aster:PreloadIcons()
 Aster:SetDensity(mode)            Aster:LoadFont({ Name = "ValleySans" })
 Aster:SetCornerRadius(px)         Aster:Destroy()
 Aster.ForceCheckbox = false       -- true: every Toggle renders as a checkbox
+Aster:SetForceCheckbox(bool)      -- flips that and converts live toggles in place
 ```
 
 ### Draggable labels

@@ -69,7 +69,7 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `OpenButton` | table / bool | On-screen open button (mobile gets one by default). |
 | `Backdrop` | table / bool | Weather + dim backdrop; `false` disables it. |
 | `Home` | table / bool | Home dashboard, see below; `false` disables the Home tab. |
-| `Icon` | string / `rbxassetid` | Replaces the embedded logo. |
+| `Icon` | string / `rbxassetid` | Replaces the embedded logo. `"None"` removes the logo — the window `Title` / `Subtitle` shift left into its place. |
 | `UIScale` | number | `0.6` – `1.5`, default `1`. |
 | `AdaptiveSize` | bool | Shrinks the window to fit small screens. Default `true`. |
 | `Density` | string | `"Compact"`, `"Default"` or `"Comfortable"`. |
@@ -97,7 +97,7 @@ local Sub = Tab:SubTab({ Name = "Extra", Icon = "layers" })
 Tab:SelectSubTab(Sub)
 ```
 
-Icons are [Lucide](https://lucide.dev) names (`"house"`, `"settings"`, `"shield"`, `"sparkles"`, …), fetched once at runtime; the set tracks current Lucide names (e.g. `"house"`, not the older `"home"`). Passing `Icon = "None"` (any case) means no icon: the icon slot collapses and the text moves into its place.
+Icons are [Lucide](https://lucide.dev) names (`"house"`, `"settings"`, `"shield"`, `"sparkles"`, …), fetched once at runtime; the set tracks current Lucide names (e.g. `"house"`, not the older `"home"`). Passing `Icon = "None"` (any case) means no icon: the icon slot collapses, the title/subtitle move into its place, and **no default icon is substituted** — everywhere an icon is accepted (`CreateWindow`, tabs, sub tabs, groupboxes, buttons, inputs, dialogs, notifications, flags, …).
 
 ## Widgets
 

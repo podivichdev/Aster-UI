@@ -38,10 +38,12 @@ Library.Flags = {}
 Library.Windows = {}
 
 -- "None" as an icon name means an explicit no-icon: elements that reserve a
--- slot for an icon drop it and their text sits where the icon would be.
+-- slot for an icon drop it and their text sits where the icon would be. The
+-- sentinel is `false` (not nil) so `icon or fallback` chains keep their
+-- fallback for "not set" but never bring a default icon back for "None".
 local function cleanIcon(icon)
     if type(icon) == "string" and icon:lower():gsub("^lucide:", "") == "none" then
-        return nil
+        return false
     end
     return icon
 end
@@ -797,6 +799,19 @@ end
 local CUSTOM_ICON_SCALE = 1.35
 
 local function applyIcon(imageLabel, icon, fixedSize)
+    if icon == false then
+        -- Explicit no-icon: clear the slot so a recycled label never keeps a
+        -- stale image.
+        imageLabel.Image = ""
+        imageLabel.ImageRectOffset = Vector2.zero
+        imageLabel.ImageRectSize = Vector2.zero
+        imageLabel:SetAttribute("CustomIcon", nil)
+        local stale = imageLabel:FindFirstChild("CustomIconScale")
+        if stale then
+            stale:Destroy()
+        end
+        return
+    end
     local image, rectOffset, rectSize, custom, tint = resolveIcon(icon)
     if not image then
         return
@@ -4454,6 +4469,10 @@ function Library.Window(_, opts)
     local size = opts.Size or UDim2.fromOffset(760, 520)
     local keybind = opts.Keybind or Enum.KeyCode.RightControl
 
+    local logoIcon = opts.Icon
+    if logoIcon == nil then
+        logoIcon = Assets.Logo
+    end
     local self = setmetatable({
         Tabs = {},
         CurrentTab = nil,
@@ -4470,7 +4489,7 @@ function Library.Window(_, opts)
         _hideName = false,
         _hideAvatar = false,
         Title = opts.Title or opts.Name or "Aster UI",
-        _logoIcon = opts.Icon or Assets.Logo,
+        _logoIcon = logoIcon,
         _sessionStart = os.clock(),
         _islandLocked = opts.IslandDraggable == false,
     }, Window)
@@ -4698,21 +4717,25 @@ function Library.Window(_, opts)
         BackgroundTransparency = 1,
         Parent = sidebar,
     })
-    local logo = create("ImageLabel", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 14, 0.5, 0),
-        Size = UDim2.fromOffset(32, 32),
-        BackgroundTransparency = 1,
-        Image = "",
-        ImageColor3 = Color3.new(1, 1, 1),
-        ScaleType = Enum.ScaleType.Fit,
-        Parent = header,
-    })
-    applyIcon(logo, opts.Icon or Assets.Logo, true)
+    if opts.Icon ~= false then
+        local logo = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 14, 0.5, 0),
+            Size = UDim2.fromOffset(32, 32),
+            BackgroundTransparency = 1,
+            Image = "",
+            ImageColor3 = Color3.new(1, 1, 1),
+            ScaleType = Enum.ScaleType.Fit,
+            Parent = header,
+        })
+        applyIcon(logo, opts.Icon or Assets.Logo, true)
+    end
+    -- No logo: the title and subtitle start where the icon would have been.
+    local TEXT_X = opts.Icon ~= false and 56 or 14
     local subtitle = opts.Version or opts.Subtitle
     label({
-        Position = UDim2.new(0, 56, 0.5, subtitle and -15 or -9),
-        Size = UDim2.new(1, -68, 0, 18),
+        Position = UDim2.new(0, TEXT_X, 0.5, subtitle and -15 or -9),
+        Size = UDim2.new(1, -(TEXT_X + 12), 0, 18),
         Text = self.Title,
         TextSize = 14,
         FontFace = Fonts.Bold,
@@ -4720,8 +4743,8 @@ function Library.Window(_, opts)
     })
     if subtitle then
         label({
-            Position = UDim2.new(0, 56, 0.5, 3),
-            Size = UDim2.new(1, -68, 0, 14),
+            Position = UDim2.new(0, TEXT_X, 0.5, 3),
+            Size = UDim2.new(1, -(TEXT_X + 12), 0, 14),
             Text = tostring(subtitle),
             TextSize = 11,
             FontFace = Fonts.Regular,
@@ -5045,11 +5068,15 @@ function Library.Window(_, opts)
                 local rememberable = entry.Remember ~= false and not block
                 if not (rememberable and UnsupportedSkip.DisclaimerAccepted(folder, key)) then
                     local callback = entry.Callback
+                    local entryIcon = cleanIcon(entry.Icon)
+                    if entryIcon == nil then
+                        entryIcon = "info"
+                    end
                     table.insert(prompts, {
                         Title = entry.Title or "Disclaimer",
                         Subtitle = entry.Subtitle,
                         Text = entry.Text or "",
-                        Icon = entry.Icon or "info",
+                        Icon = entryIcon,
                         Color = entry.Color or Theme.Accent,
                         ContinueText = entry.AcceptText or "I understand",
                         ExitText = entry.DeclineText == nil and "Exit" or entry.DeclineText,
@@ -5191,7 +5218,7 @@ function Library:AddDraggableLabel(...)
 
     local iconImage
     local function hasIcon()
-        return icon ~= nil and tostring(icon):match("%S") ~= nil
+        return icon ~= nil and icon ~= false and tostring(icon):match("%S") ~= nil
     end
 
     -- The pill grows a 34px strip on the icon's side and the icon sits in it,
@@ -6196,16 +6223,18 @@ function Window:_showLoader(opts)
         Parent = loader,
     })
 
-    local logo = create("ImageLabel", {
-        Position = UDim2.fromOffset(PAD, PAD),
-        Size = UDim2.fromOffset(30, 30),
-        BackgroundTransparency = 1,
-        ImageColor3 = Color3.new(1, 1, 1),
-        ScaleType = Enum.ScaleType.Fit,
-        Parent = content,
-    })
-    applyIcon(logo, opts.Icon or Assets.Logo, true)
-    local TEXT_X = PAD + 42
+    if opts.Icon ~= false then
+        local logo = create("ImageLabel", {
+            Position = UDim2.fromOffset(PAD, PAD),
+            Size = UDim2.fromOffset(30, 30),
+            BackgroundTransparency = 1,
+            ImageColor3 = Color3.new(1, 1, 1),
+            ScaleType = Enum.ScaleType.Fit,
+            Parent = content,
+        })
+        applyIcon(logo, opts.Icon or Assets.Logo, true)
+    end
+    local TEXT_X = opts.Icon ~= false and (PAD + 42) or PAD
     local titleLabel = label({
         Position = UDim2.fromOffset(TEXT_X, PAD - 2),
         Size = UDim2.new(1, -(TEXT_X + 70), 0, 18),
@@ -6446,18 +6475,26 @@ function Window:_showLoader(opts)
             ScaleType = Enum.ScaleType.Fit,
             Parent = badge,
         })
-        applyIcon(badgeIcon, info.Icon or "info")
+        if info.Icon ~= false then
+            applyIcon(badgeIcon, info.Icon or "info")
+        else
+            -- No icon: the badge collapses and the head text starts at the
+            -- card's padding.
+            badge.Visible = false
+        end
+        local headX = info.Icon ~= false and (PAD + 58) or PAD
+        local headWidth = info.Icon ~= false and (PAD * 2 + 58) or (PAD * 2)
         label({
-            Position = UDim2.fromOffset(PAD + 58, info.Subtitle and PAD + 3 or PAD + 12),
-            Size = UDim2.new(1, -(PAD * 2 + 58), 0, 20),
+            Position = UDim2.fromOffset(headX, info.Subtitle and PAD + 3 or PAD + 12),
+            Size = UDim2.new(1, -headWidth, 0, 20),
             Text = info.Title,
             TextSize = 17,
             Parent = warnCard,
         })
         if info.Subtitle then
             label({
-                Position = UDim2.fromOffset(PAD + 58, PAD + 25),
-                Size = UDim2.new(1, -(PAD * 2 + 58), 0, 16),
+                Position = UDim2.fromOffset(headX, PAD + 25),
+                Size = UDim2.new(1, -headWidth, 0, 16),
                 Text = tostring(info.Subtitle),
                 TextSize = 13,
                 TextColor3 = tone,
@@ -6900,19 +6937,25 @@ function Window:_createOpenButton(opts)
     corner(pill, UDim.new(1, 0))
     stroke(pill, Theme.Stroke)
     padding(pill, 12, 16)
-    local icon = create("ImageLabel", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.fromOffset(20, 20),
-        BackgroundTransparency = 1,
-        ImageColor3 = Color3.new(1, 1, 1),
-        ScaleType = Enum.ScaleType.Fit,
-        ZIndex = 31,
-        Parent = pill,
-    })
-    applyIcon(icon, cleanIcon(opts.Icon) or Assets.Logo, true)
+    local openIcon = cleanIcon(opts.Icon)
+    if openIcon == nil then
+        openIcon = Assets.Logo
+    end
+    if openIcon ~= false then
+        local icon = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 0, 0.5, 0),
+            Size = UDim2.fromOffset(20, 20),
+            BackgroundTransparency = 1,
+            ImageColor3 = Color3.new(1, 1, 1),
+            ScaleType = Enum.ScaleType.Fit,
+            ZIndex = 31,
+            Parent = pill,
+        })
+        applyIcon(icon, openIcon, true)
+    end
     label({
-        Position = UDim2.fromOffset(28, 0),
+        Position = UDim2.fromOffset(openIcon ~= false and 28 or 0, 0),
         Size = UDim2.new(0, 0, 1, 0),
         AutomaticSize = Enum.AutomaticSize.X,
         Text = opts.Title or "Aster UI",
@@ -7023,7 +7066,11 @@ function Window:_createToggleButton(opts)
     self.ToggleButton = button
     self._toggleStroke = buttonStroke
     self._toggleIcon = icon
-    self:SetToggleButtonIcon(cleanIcon(opts.Icon) or "layout-grid")
+    local toggleIcon = opts.Icon
+    if toggleIcon == nil then
+        toggleIcon = "layout-grid"
+    end
+    self:SetToggleButtonIcon(toggleIcon)
 
     local dragging, moved = false, false
     local grab = Vector2.zero
@@ -7086,10 +7133,13 @@ function Window:SetToggleButtonIcon(icon)
     if not image then
         return
     end
+    icon = cleanIcon(icon)
     image.Image = ""
-    applyIcon(image, cleanIcon(icon))
-    if image.Image == "" then
-        applyIcon(image, Assets.Logo)
+    if icon ~= false then
+        applyIcon(image, icon)
+        if image.Image == "" then
+            applyIcon(image, Assets.Logo)
+        end
     end
     if not image:GetAttribute("CustomIcon") then
         tween(image, { ImageColor3 = (self.Minimized or not self.Open) and Theme.Text or Theme.Accent }, 0)
@@ -8381,19 +8431,22 @@ local function emptyState(parent, icon, text)
         BackgroundTransparency = 1,
         Parent = parent,
     })
-    local image = create("ImageLabel", {
-        AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 0),
-        Size = UDim2.fromOffset(26, 26),
-        BackgroundTransparency = 1,
-        ImageColor3 = Theme.Muted,
-        ImageTransparency = 0.15,
-        ScaleType = Enum.ScaleType.Fit,
-        Parent = holder,
-    })
-    applyIcon(image, icon)
+    local image
+    if icon then
+        image = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 0),
+            Size = UDim2.fromOffset(26, 26),
+            BackgroundTransparency = 1,
+            ImageColor3 = Theme.Muted,
+            ImageTransparency = 0.15,
+            ScaleType = Enum.ScaleType.Fit,
+            Parent = holder,
+        })
+        applyIcon(image, icon)
+    end
     local caption = label({
-        Position = UDim2.fromOffset(0, 36),
+        Position = UDim2.fromOffset(0, image and 36 or 27),
         Size = UDim2.new(1, 0, 0, 16),
         Text = text,
         TextSize = 13,
@@ -9502,7 +9555,11 @@ local function managerHost(tab, opts, name, icon)
     if tab._groupbox then
         return tab
     end
-    local host = tab:Groupbox({ Name = opts.Name or name, Icon = opts.Icon or icon, Side = opts.Side })
+    local hostIcon = opts.Icon
+    if hostIcon == nil then
+        hostIcon = icon
+    end
+    local host = tab:Groupbox({ Name = opts.Name or name, Icon = hostIcon, Side = opts.Side })
     -- Library chrome, not a script feature: the feature list skips it.
     host._manager = true
     return host
@@ -12367,7 +12424,14 @@ function Tab:SubTab(opts, icon)
         Parent = ui.Area,
     })
     sub._frame = frame
-    buildContainer(sub, frame, 0, opts.Icon or self._iconName or "layout-grid", opts.EmptyText or "Nothing here yet")
+    local emptyIcon = opts.Icon
+    if emptyIcon == nil then
+        emptyIcon = self._iconName
+    end
+    if emptyIcon == nil then
+        emptyIcon = "layout-grid"
+    end
+    buildContainer(sub, frame, 0, emptyIcon, opts.EmptyText or "Nothing here yet")
 
     local button = create("TextButton", {
         Size = UDim2.new(0, 0, 1, 0),
@@ -13096,12 +13160,20 @@ function Window:_buildSearch(content)
             local onTab = result.Kind == "Tab"
             local onSub = result.Kind == "Page"
             local onGroup = result.Kind == "Groupbox"
-            crumbIcon(tab._iconName or "layout-grid")
+            local tabIcon = tab._iconName
+            if tabIcon == nil then
+                tabIcon = "layout-grid"
+            end
+            crumbIcon(tabIcon)
             if not onTab then
                 crumbText(tab.Name)
                 if sub then
                     chevron()
-                    crumbIcon(sub._iconName or "layers")
+                    local subIcon = sub._iconName
+                    if subIcon == nil then
+                        subIcon = "layers"
+                    end
+                    crumbIcon(subIcon)
                     if not onSub then
                         crumbText(sub.Name)
                     end
@@ -13478,6 +13550,7 @@ end
 -- A rounded chip of an icon and short text. Returns the chip, its label and
 -- its icon so callers can recolour them.
 function Window:_homeChip(parent, order, icon, text, color)
+    icon = cleanIcon(icon)
     local chip = create("TextButton", {
         Size = UDim2.fromOffset(0, 24),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -13499,15 +13572,18 @@ function Window:_homeChip(parent, order, icon, text, color)
         Padding = UDim.new(0, 6),
         Parent = chip,
     })
-    local image = create("ImageLabel", {
-        Size = UDim2.fromOffset(12, 12),
-        BackgroundTransparency = 1,
-        ImageColor3 = color or Theme.Muted,
-        ScaleType = Enum.ScaleType.Fit,
-        LayoutOrder = 1,
-        Parent = chip,
-    })
-    applyIcon(image, icon)
+    local image
+    if icon ~= false then
+        image = create("ImageLabel", {
+            Size = UDim2.fromOffset(12, 12),
+            BackgroundTransparency = 1,
+            ImageColor3 = color or Theme.Muted,
+            ScaleType = Enum.ScaleType.Fit,
+            LayoutOrder = 1,
+            Parent = chip,
+        })
+        applyIcon(image, icon)
+    end
     local text_ = label({
         Size = UDim2.new(0, 0, 1, 0),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -13529,7 +13605,9 @@ function Window:_homeToggleChip(parent, order, icon, text, initial, callback)
         tween(chip, { BackgroundColor3 = on and Theme.Accent or Theme.Surface3, BackgroundTransparency = on and 0.85 or 0.2 }, duration)
         tween(chipStroke, { Color = on and Theme.Accent or Theme.Stroke, Transparency = on and 0.6 or 0 }, duration)
         tween(text_, { TextColor3 = on and Theme.Accent or Theme.Muted }, duration)
-        tween(image, { ImageColor3 = on and Theme.Accent or Theme.Muted }, duration)
+        if image then
+            tween(image, { ImageColor3 = on and Theme.Accent or Theme.Muted }, duration)
+        end
     end
     paint(0)
     chip.MouseButton1Click:Connect(function()
@@ -13622,10 +13700,16 @@ function Window:_homeProfile(list, opts, order)
         tier = "Free"
     end
     if tier then
-        local tierChip, tierText, tierIcon = self:_homeChip(chips, 1, opts.TierIcon or self._logoIcon, tostring(tier), Theme.Accent)
+        local tierIconValue = opts.TierIcon
+        if tierIconValue == nil then
+            tierIconValue = self._logoIcon
+        end
+        local tierChip, tierText, tierIcon = self:_homeChip(chips, 1, tierIconValue, tostring(tier), Theme.Accent)
         tierChip.Active = false
         tierText.FontFace = Fonts.Bold
-        tierIcon.Size = UDim2.fromOffset(13, 13)
+        if tierIcon then
+            tierIcon.Size = UDim2.fromOffset(13, 13)
+        end
         self.TierLabel = tierText
     end
     local expiryChip, expiryText = self:_homeChip(chips, 2, "clock", "")
@@ -13908,18 +13992,24 @@ function Window:_homeLink(card, order, icon, title, text, buttonIcon, callback)
         BorderSizePixel = 0,
         Parent = row,
     })
-    local holder = glowIcon(row, icon, Theme.Accent, UDim2.new(0, 0, 0.5, 0))
-    holder.Size = UDim2.fromOffset(16, 16)
+    icon = cleanIcon(icon)
+    local textX = 28
+    if icon ~= false then
+        local holder = glowIcon(row, icon, Theme.Accent, UDim2.new(0, 0, 0.5, 0))
+        holder.Size = UDim2.fromOffset(16, 16)
+    else
+        textX = 0
+    end
     local titleLabel = label({
-        Position = UDim2.fromOffset(28, 6),
-        Size = UDim2.new(1, -68, 0, 18),
+        Position = UDim2.fromOffset(textX, 6),
+        Size = UDim2.new(1, -(textX + 40), 0, 18),
         Text = title,
         TextSize = 13,
         Parent = row,
     })
     local textLabel = label({
-        Position = UDim2.fromOffset(28, 24),
-        Size = UDim2.new(1, -68, 0, 15),
+        Position = UDim2.fromOffset(textX, 24),
+        Size = UDim2.new(1, -(textX + 40), 0, 15),
         Text = text,
         TextSize = 12,
         FontFace = Fonts.Regular,
@@ -13970,15 +14060,23 @@ end
 function Window:_homeLinks(parent, opts, order)
     local links = {}
     if opts.Discord then
+        local discordIcon = opts.DiscordIcon
+        if discordIcon == nil then
+            discordIcon = "message-circle"
+        end
         table.insert(links, {
-            Icon = opts.DiscordIcon or "message-circle",
+            Icon = discordIcon,
             Title = opts.DiscordTitle or "Community",
             Text = opts.Discord,
         })
     end
     if opts.Website then
+        local websiteIcon = opts.WebsiteIcon
+        if websiteIcon == nil then
+            websiteIcon = "globe"
+        end
         table.insert(links, {
-            Icon = opts.WebsiteIcon or "globe",
+            Icon = websiteIcon,
             Title = opts.WebsiteTitle or "Website",
             Text = opts.Website,
         })
@@ -13994,7 +14092,11 @@ function Window:_homeLinks(parent, opts, order)
     self:_homeCaption(card, "Links", 0)
     for index, link in ipairs(links) do
         local action = type(link.Callback) == "function"
-        self:_homeLink(card, index, link.Icon or "link", link.Title or "", link.Text or "", action and "arrow-up-right" or "copy", function()
+        local linkIcon = link.Icon
+        if linkIcon == nil then
+            linkIcon = "link"
+        end
+        self:_homeLink(card, index, linkIcon, link.Title or "", link.Text or "", action and "arrow-up-right" or "copy", function()
             if action then
                 safeCall(link.Callback)
             else
@@ -14008,8 +14110,15 @@ function Window:_homeLinks(parent, opts, order)
             self._featuresTitle = features.Title
             self._features = features.List or (#features > 0 and features or nil)
         end
+        local featuresIcon
+        if type(features) == "table" then
+            featuresIcon = features.Icon
+        end
+        if featuresIcon == nil then
+            featuresIcon = "list-checks"
+        end
         local _, _, text_ = self:_homeLink(card, 100,
-            type(features) == "table" and features.Icon or "list-checks",
+            featuresIcon,
             type(features) == "table" and features.Title or "Feature list",
             "", "chevron-right", function()
                 self:ShowFeatures()
@@ -14462,10 +14571,19 @@ function Window:ShowFeatures()
             LayoutOrder = order,
             Parent = content,
         })
-        local headIcon = glowIcon(header, group.Icon or "layout-grid", Theme.Accent, UDim2.new(0, 2, 0, 18))
-        headIcon.Size = UDim2.fromOffset(14, 14)
+        local groupIcon = group.Icon
+        if groupIcon == nil then
+            groupIcon = "layout-grid"
+        end
+        local headX = 24
+        if groupIcon ~= false then
+            local headIcon = glowIcon(header, groupIcon, Theme.Accent, UDim2.new(0, 2, 0, 18))
+            headIcon.Size = UDim2.fromOffset(14, 14)
+        else
+            headX = 2
+        end
         label({
-            Position = UDim2.fromOffset(24, 10),
+            Position = UDim2.fromOffset(headX, 10),
             Size = UDim2.new(1, -70, 0, 16),
             Text = string.upper(group.Name),
             TextSize = 11,
@@ -14498,8 +14616,16 @@ function Window:ShowFeatures()
                 Parent = content,
             })
             corner(row, UDim.new(0, 8))
-            local rowIcon = glowIcon(row, item.Icon or self._searchIcons[item.Kind] or "check", Theme.Muted, UDim2.new(0, 10, 0.5, 0))
-            rowIcon.Size = UDim2.fromOffset(14, 14)
+            local rowIconValue = item.Icon
+            if rowIconValue == nil then
+                rowIconValue = self._searchIcons[item.Kind] or "check"
+            end
+            local rowIcon
+            if rowIconValue ~= false then
+                rowIcon = glowIcon(row, rowIconValue, Theme.Muted, UDim2.new(0, 10, 0.5, 0))
+                rowIcon.Size = UDim2.fromOffset(14, 14)
+            end
+            local textX = rowIcon and 34 or 10
             local right = 12 + (clickable and 22 or 0)
             local tag
             if item.Tag then
@@ -14526,8 +14652,8 @@ function Window:ShowFeatures()
                 })
             end
             local nameLabel = label({
-                Position = UDim2.fromOffset(34, sub and 5 or 0),
-                Size = UDim2.new(1, -(34 + right), 0, sub and 18 or ROW - 4),
+                Position = UDim2.fromOffset(textX, sub and 5 or 0),
+                Size = UDim2.new(1, -(textX + right), 0, sub and 18 or ROW - 4),
                 Text = item.Name,
                 TextSize = 13,
                 Parent = row,
@@ -14535,8 +14661,8 @@ function Window:ShowFeatures()
             local subLabel
             if sub then
                 subLabel = label({
-                    Position = UDim2.fromOffset(34, 23),
-                    Size = UDim2.new(1, -(34 + right), 0, 14),
+                    Position = UDim2.fromOffset(textX, 23),
+                    Size = UDim2.new(1, -(textX + right), 0, 14),
                     Text = sub,
                     TextSize = 11,
                     FontFace = Fonts.Regular,
@@ -14546,7 +14672,7 @@ function Window:ShowFeatures()
             end
             if tag then
                 local function reserveTag()
-                    local width = 34 + right + tag.AbsoluteSize.X / self.Scale.Scale + 8
+                    local width = textX + right + tag.AbsoluteSize.X / self.Scale.Scale + 8
                     nameLabel.Size = UDim2.new(1, -width, 0, nameLabel.Size.Y.Offset)
                     if subLabel then
                         subLabel.Size = UDim2.new(1, -width, 0, 14)
@@ -14893,10 +15019,14 @@ function Window:_buildHome(opts)
     self._hideName = opts.HideName == true
     self._hideAvatar = opts.HideAvatar == true
     self:_renderIdentity(true)
+    local homeIcon = opts.Icon
+    if homeIcon == nil then
+        homeIcon = "house"
+    end
     local tab = self:Tab({
         Name = opts.Name or "Home",
         Desc = opts.Desc,
-        Icon = opts.Icon or "house",
+        Icon = homeIcon,
         PageTitle = opts.Title or "Home",
     })
     tab._order = 100
@@ -14905,7 +15035,11 @@ function Window:_buildHome(opts)
     local pages = opts.Pages or opts.Tabs
     local overview = tab
     if type(pages) == "table" and #pages > 0 then
-        overview = tab:SubTab({ Name = opts.OverviewName or "Overview", Icon = opts.TabIcon or "layout-grid" })
+        local overviewIcon = opts.TabIcon
+        if overviewIcon == nil then
+            overviewIcon = "layout-grid"
+        end
+        overview = tab:SubTab({ Name = opts.OverviewName or "Overview", Icon = overviewIcon })
     end
     overview._noSearch = true
     overview._order = 100
@@ -15008,7 +15142,7 @@ function Window:Tab(opts, icon)
     buttonStroke.Enabled = false
     tab._button = button
 
-    local hasIcon = opts.Icon ~= nil
+    local hasIcon = opts.Icon ~= nil and opts.Icon ~= false
     if hasIcon then
         local iconImage = create("ImageLabel", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -15070,7 +15204,11 @@ function Window:Tab(opts, icon)
     local listTop = opts.Desc and 70 or 58
     tab._headerBottom = listTop
     tab._iconName = opts.Icon
-    buildContainer(tab, page, listTop, opts.Icon or "layout-grid", opts.EmptyText or "Nothing here yet")
+    local emptyIcon = opts.Icon
+    if emptyIcon == nil then
+        emptyIcon = "layout-grid"
+    end
+    buildContainer(tab, page, listTop, emptyIcon, opts.EmptyText or "Nothing here yet")
 
     local pressScale = create("UIScale", { Parent = button })
     local function release()
@@ -15134,10 +15272,14 @@ Window.CreateTab = Window.Tab
 function Window:CloudConfigs(opts)
     opts = normalize(opts, { Title = "Name", Description = "Desc" })
     local window = self
+    local tabIcon = opts.Icon
+    if tabIcon == nil then
+        tabIcon = "cloud"
+    end
     local tab = self:Tab({
         Name = opts.Name or "Cloud",
         Desc = opts.Desc,
-        Icon = opts.Icon or "cloud",
+        Icon = tabIcon,
         PageTitle = opts.PageTitle,
     })
     tab._noSearch = true
@@ -18679,32 +18821,37 @@ function Window:_buildMiniBar()
         Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 120, 120)),
         Parent = compact,
     })
-    -- The logo sits in a soft accent disc, like an app glyph.
-    local logoDisc = create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 5, 0.5, 0),
-        Size = UDim2.fromOffset(Mini.Height - 10, Mini.Height - 10),
-        BackgroundColor3 = Theme.Accent,
-        BackgroundTransparency = 0.82,
-        BorderSizePixel = 0,
-        Parent = compact,
-    })
-    corner(logoDisc, UDim.new(1, 0))
-    local logo = create("ImageLabel", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(16, 16),
-        BackgroundTransparency = 1,
-        ImageColor3 = Theme.Accent,
-        ScaleType = Enum.ScaleType.Fit,
-        Parent = logoDisc,
-    })
-    applyIcon(logo, self._logoIcon, true)
+    -- The logo sits in a soft accent disc, like an app glyph. Without one the
+    -- title starts at the pill's edge instead.
+    local miniLogo = self._logoIcon
+    if miniLogo ~= false then
+        local logoDisc = create("Frame", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 5, 0.5, 0),
+            Size = UDim2.fromOffset(Mini.Height - 10, Mini.Height - 10),
+            BackgroundColor3 = Theme.Accent,
+            BackgroundTransparency = 0.82,
+            BorderSizePixel = 0,
+            Parent = compact,
+        })
+        corner(logoDisc, UDim.new(1, 0))
+        local logo = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(16, 16),
+            BackgroundTransparency = 1,
+            ImageColor3 = Theme.Accent,
+            ScaleType = Enum.ScaleType.Fit,
+            Parent = logoDisc,
+        })
+        applyIcon(logo, miniLogo, true)
+    end
     -- The script's name beside the logo, so the pill reads at a glance.
+    local titleX = miniLogo ~= false and (Mini.Height + 2) or 14
     local miniTitle = label({
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, Mini.Height + 2, 0.5, 0),
-        Size = UDim2.new(1, -Mini.Height - 2 - 72, 0, 18),
+        Position = UDim2.new(0, titleX, 0.5, 0),
+        Size = UDim2.new(1, -titleX - 72, 0, 18),
         Text = self.Title,
         TextSize = 13,
         FontFace = Fonts.Bold,
@@ -19462,6 +19609,9 @@ function Window:_buildMiniBar()
         if icon == nil then
             icon = ({ Success = "circle-check", Warning = "triangle-alert", Error = "circle-x" })[opts.Type] or "bell"
         end
+        local showIcon = icon ~= false
+        activityChip.Visible = showIcon
+        activityText.Position = UDim2.fromOffset(showIcon and 46 or 0, 0)
         applyIcon(activityIcon, icon)
         if not activityIcon:GetAttribute("CustomIcon") then
             activityIcon.ImageColor3 = color

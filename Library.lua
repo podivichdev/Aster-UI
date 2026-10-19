@@ -42,6 +42,25 @@ Library.Windows = {}
 -- off: every text element created while it is false gets AutoLocalize = false.
 Library.AutoTranslate = true
 
+-- AlwaysOnTop lifts the UI above Roblox's core blur (the overlay behind the
+-- Roblox menu) through a hidden ScreenGui property. It is executor-only; where
+-- the executor does not expose it the pcall simply does nothing. Same approach
+-- as Obsidian's SetAlwaysOnTop.
+function Library._SetAlwaysOnTop(gui, enabled)
+    if not gui then
+        return
+    end
+    pcall(function()
+        if sethiddenproperty then
+            sethiddenproperty(gui, "OnTopOfCoreBlur", enabled)
+        elseif setscriptable then
+            setscriptable(gui, "OnTopOfCoreBlur", true)
+            gui.OnTopOfCoreBlur = enabled
+            setscriptable(gui, "OnTopOfCoreBlur", false)
+        end
+    end)
+end
+
 -- "None" as an icon name means an explicit no-icon: elements that reserve a
 -- slot for an icon drop it and their text sits where the icon would be. The
 -- sentinel is `false` (not nil) so `icon or fallback` chains keep their
@@ -4554,6 +4573,8 @@ function Library.Window(_, opts)
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
     self.Gui = gui
+    self.AlwaysOnTop = opts.AlwaysOnTop == true
+    Library._SetAlwaysOnTop(gui, self.AlwaysOnTop)
 
     -- Engine-level cursor release: while a visible button with Modal = true
     -- exists, the mouse stays movable even when the game holds it locked to
@@ -6084,6 +6105,13 @@ function Window:SetTransparent(enabled)
     if self.Open and not self.Minimized and self.Root.Visible then
         tween(self.Shadow, { ImageTransparency = self._shadowRest }, 0.25)
     end
+end
+
+-- Renders the whole window above Roblox's core blur (the overlay behind the
+-- Roblox menu). Executor-only hidden property; ignored where unsupported.
+function Window:SetAlwaysOnTop(enabled)
+    self.AlwaysOnTop = enabled == true
+    Library._SetAlwaysOnTop(self.Gui, self.AlwaysOnTop)
 end
 
 local function orderedChildren(parent)

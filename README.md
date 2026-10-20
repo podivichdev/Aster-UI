@@ -131,7 +131,7 @@ All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeNa
 | `Tab:Status(opts)` / `Tab:StatusList(opts)` / `Tab:Statuses(entries, shared)` | Live status rows with health colors. |
 | `Tab:ConfigManager({ Name, Side })` | Ready-made config manager UI (create / save / load / delete / rename / autoload / import / export). |
 | `Tab:ThemeManager({ Name, Side })` | Ready-made theme, background, weather and look-settings picker UI. |
-| `Tab:InterfaceManager({ Name, Side })` | Ready-made menu-settings panel: keybind, backdrop, custom cursor, FPS/ping watermark, Toggle Style, Keybind Menu and Unload. |
+| `Tab:InterfaceManager({ Name, Side })` | Ready-made menu-settings panel: keybind, backdrop, custom cursor, FPS/ping watermark, Keybind Menu, Toggle Style and Unload. |
 
 `Title`, `Description`, `CurrentValue` / `Value`, `CurrentOption`, `MultipleOptions`, `Values` and `Increment` are accepted as friendly aliases everywhere (`Title` → `Name`, `Desc` → `Name`'s desc field, `Value` → `Default`, `Step` → `Increment`, …).
 
@@ -241,7 +241,7 @@ Aster.KeybindMenu:Refresh()          -- force a row repaint; rows update themsel
 
 ### Interface manager
 
-`Tab:InterfaceManager()` builds the menu's own settings panel, the counterpart to `ConfigManager` and `ThemeManager`: the menu keybind, backdrop, custom cursor, watermark, Toggle Style, Keybind Menu and a confirmed Unload button. The watermark is created on demand as an `Aster:AddDraggableLabel` chip showing live FPS and ping (hidden by default), so the script does not have to maintain its own Heartbeat loop. The panel is saved through a hidden `__Interface` flag, so configs restore it without counting each row as a running feature.
+`Tab:InterfaceManager()` builds the menu's own settings panel, the counterpart to `ConfigManager` and `ThemeManager`: the menu keybind, backdrop, custom cursor, watermark, Keybind Menu, Toggle Style and a confirmed Unload button. The watermark is created on demand as an `Aster:AddDraggableLabel` chip showing live FPS and ping (hidden by default), so the script does not have to maintain its own Heartbeat loop. The panel is saved through a hidden `__Interface` flag, so configs restore it without counting each row as a running feature.
 
 ```lua
 local manager = Config:InterfaceManager({ Side = "Left" })

@@ -11162,6 +11162,20 @@ function Tab:InterfaceManager(opts)
         window._interfaceWatermarkToggle = watermarkToggle
     end
 
+    -- Opens the floating Keybind Menu, the same list Obsidian hangs off its
+    -- KeybindFrame. Stored on the window so the menu can keep this toggle in
+    -- step when it is opened or closed through the API.
+    if opts.KeybindMenu ~= false then
+        keybindMenuToggle = host:Toggle({
+            Name = "Keybind Menu",
+            Default = window.KeybindFrame ~= nil and window.KeybindFrame.Visible == true,
+            Callback = function(value)
+                window:SetKeybindMenu(value)
+            end,
+        })
+        window._keybindMenuToggle = keybindMenuToggle
+    end
+
     if opts.ToggleStyle ~= false then
         toggleStyle = host:Dropdown({
             Name = "Toggle Style",
@@ -11177,20 +11191,6 @@ function Tab:InterfaceManager(opts)
             end,
         })
         window._interfaceToggleStyle = toggleStyle
-    end
-
-    -- Opens the floating Keybind Menu, the same list Obsidian hangs off its
-    -- KeybindFrame. Stored on the window so the menu can keep this toggle in
-    -- step when it is opened or closed through the API.
-    if opts.KeybindMenu ~= false then
-        keybindMenuToggle = host:Toggle({
-            Name = "Keybind Menu",
-            Default = window.KeybindFrame ~= nil and window.KeybindFrame.Visible == true,
-            Callback = function(value)
-                window:SetKeybindMenu(value)
-            end,
-        })
-        window._keybindMenuToggle = keybindMenuToggle
     end
 
     if opts.Unload ~= false then

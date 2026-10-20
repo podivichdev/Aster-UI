@@ -63,8 +63,8 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `ShowCustomCursor` | bool | While the window is open, draws the library's own cross cursor and hides the system one; with it off the system cursor is forced visible instead. Keeps the pointer visible in games that hide it to aim. Default `true`. |
 | `AutoTranslate` | bool | Whether Roblox may auto-translate the UI. `false` sets `AutoLocalize = false` on every text element, so text reads exactly as written. Default `true` (can also be preset as `Aster.AutoTranslate = false`). |
 | `AlwaysOnTop` | bool | Renders the UI above Roblox's core blur (the overlay behind the Roblox menu) through the hidden `OnTopOfCoreBlur` ScreenGui property. Executor-only; silently ignored where unsupported. Default `false`. |
-| `ForceCheckbox` | bool | Renders every `Toggle` as a checkbox instead of a switch, like Obsidian's `Library.ForceCheckbox`. Module-wide; switching it converts live toggles in place (Theme Manager's **Toggle Style** dropdown, `Aster:SetForceCheckbox(bool)`, or a loaded config). Default `false` (can also be preset as `Aster.ForceCheckbox = true`). |
-| `KeybindMenu` | bool | Starts the floating Keybind Menu open. Like Obsidian's keybind frame it is hidden by default; open it with `Window:SetKeybindMenu(bool)`, `Window:ToggleKeybindMenu()`, the Theme Manager's **Keybind Menu** toggle, or `Aster.KeybindFrame.Visible = true`. |
+| `ForceCheckbox` | bool | Renders every `Toggle` as a checkbox instead of a switch, like Obsidian's `Library.ForceCheckbox`. Module-wide; switching it converts live toggles in place (Interface Manager's **Toggle Style** dropdown, `Aster:SetForceCheckbox(bool)`, or a loaded config). Default `false` (can also be preset as `Aster.ForceCheckbox = true`). |
+| `KeybindMenu` | bool | Starts the floating Keybind Menu open. Like Obsidian's keybind frame it is hidden by default; open it with `Window:SetKeybindMenu(bool)`, `Window:ToggleKeybindMenu()`, the Interface Manager's **Keybind Menu** toggle, or `Aster.KeybindFrame.Visible = true`. |
 | `Size` | `UDim2` | Default `760x520`. |
 | `Theme` / `DefaultTheme` | string | Theme name from `Aster.ThemePresets`. Default `"Cybrion"`. |
 | `Weather` | string | Backdrop weather: `Snow`, `Rain`, `Hell Fire`, `Sakura`, `Fireflies`, `Matrix`, `None`. Default `Matrix`. |
@@ -105,7 +105,7 @@ Icons are [Lucide](https://lucide.dev) names (`"house"`, `"settings"`, `"shield"
 
 ## Widgets
 
-All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeName"` to also register it in `Aster.Flags`. Every method also has a Fluent-style `Create*` alias (`Tab:CreateToggle` == `Tab:Toggle`, `Tab:CreateConfigManager` == `Tab:ConfigManager`), and the same calls work inside groupboxes.
+All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeName"` to also register it in `Aster.Flags`. Every method also has a Fluent-style `Create*` alias (`Tab:CreateToggle` == `Tab:Toggle`, `Tab:CreateConfigManager` == `Tab:ConfigManager`, `Tab:CreateInterfaceManager` == `Tab:InterfaceManager`), and the same calls work inside groupboxes.
 
 | Widget | Options |
 |---|---|
@@ -131,6 +131,7 @@ All widgets live on a tab (or sub-tab) and return a handle. Pass `Flag = "SomeNa
 | `Tab:Status(opts)` / `Tab:StatusList(opts)` / `Tab:Statuses(entries, shared)` | Live status rows with health colors. |
 | `Tab:ConfigManager({ Name, Side })` | Ready-made config manager UI (create / save / load / delete / rename / autoload / import / export). |
 | `Tab:ThemeManager({ Name, Side })` | Ready-made theme, background, weather and look-settings picker UI. |
+| `Tab:InterfaceManager({ Name, Side })` | Ready-made menu-settings panel: keybind, backdrop, custom cursor, FPS/ping watermark, Toggle Style, Keybind Menu and Unload. |
 
 `Title`, `Description`, `CurrentValue` / `Value`, `CurrentOption`, `MultipleOptions`, `Values` and `Increment` are accepted as friendly aliases everywhere (`Title` → `Name`, `Desc` → `Name`'s desc field, `Value` → `Default`, `Step` → `Increment`, …).
 
@@ -209,12 +210,13 @@ Aster:SetForceCheckbox(bool)      -- flips that and converts live toggles in pla
 
 ### Draggable labels
 
-`Aster:AddDraggableLabel(text, icon, iconPosition)` drops a small draggable pill on screen — Obsidian's watermark, rebuilt with the window's colours and font, so it follows every theme change; it draws 10% larger than the window's UI scale and follows it live. Create a window first: the label lives in the window's screen gui (above the window body, below the pop-outs, the toggle button, the tooltip and the cursor) and is destroyed together with it. Extra labels stack below the ones already there instead of overlapping. Pass `Position` in the table form — `Vector2.new(x, y)` or `{x, y}` — to give a label an exact starting spot.
+`Aster:AddDraggableLabel(text, icon, iconPosition)` drops a small draggable pill on screen — Obsidian's watermark, rebuilt with the window's colours and font, so it follows every theme change; it draws 10% larger than the window's UI scale and follows it live. Create a window first: the label lives in the window's screen gui (above the window body, below the pop-outs, the toggle button, the tooltip and the cursor) and is destroyed together with it. Extra labels stack below the ones already there instead of overlapping. Pass `Position` in the table form — `Vector2.new(x, y)` or `{x, y}` — to give a label an exact starting spot, and `Window = Window` to attach it to a specific window when several are open. `Tab:InterfaceManager()` creates and maintains one of these for the menu's Watermark toggle.
 
 ```lua
 local Watermark = Aster:AddDraggableLabel("FPS: 240 | PING: 32 ms")
 -- Aster:AddDraggableLabel({ Text = "Watermark", Icon = "activity" })  -- table form
 -- Aster:AddDraggableLabel({ Text = "Watermark", Position = Vector2.new(120, 420) })  -- custom start spot
+-- Aster:AddDraggableLabel({ Text = "Watermark", Window = Window })  -- owner window
 
 Watermark:SetText("FPS: 240 | PING: 24 ms")   -- refresh it on a timer
 Watermark:SetIcon("activity")                 -- lucide name, asset id or URL
@@ -235,7 +237,25 @@ Aster.KeybindMenu:SetCollapsed(true) -- fold to the title bar
 Aster.KeybindMenu:Refresh()          -- force a row repaint; rows update themselves
 ```
 
-`CreateWindow({ KeybindMenu = true })` starts it open. `Tab:ThemeManager()` also gets a **Keybind Menu** toggle. Each window owns one (`Window.KeybindFrame` / `Window.KeybindMenu`); `Aster.KeybindFrame` and `Aster.KeybindMenu` point at the newest window's, like Obsidian.
+`CreateWindow({ KeybindMenu = true })` starts it open. `Tab:InterfaceManager()` also gets a **Keybind Menu** toggle. Each window owns one (`Window.KeybindFrame` / `Window.KeybindMenu`); `Aster.KeybindFrame` and `Aster.KeybindMenu` point at the newest window's, like Obsidian.
+
+### Interface manager
+
+`Tab:InterfaceManager()` builds the menu's own settings panel, the counterpart to `ConfigManager` and `ThemeManager`: the menu keybind, backdrop, custom cursor, watermark, Toggle Style, Keybind Menu and a confirmed Unload button. The watermark is created on demand as an `Aster:AddDraggableLabel` chip showing live FPS and ping (hidden by default), so the script does not have to maintain its own Heartbeat loop. The panel is saved through a hidden `__Interface` flag, so configs restore it without counting each row as a running feature.
+
+```lua
+local manager = Config:InterfaceManager({ Side = "Left" })
+manager.Watermark:SetVisible(true)   -- the chip the manager created
+manager:Refresh()                    -- pull the rows back in line with Window
+
+-- Or drive a label you already made:
+-- Config:InterfaceManager({
+--     Watermark = myLabel,
+--     WatermarkName = "Aster Hub",  -- text before " | FPS | ping ms"
+--     WatermarkVisible = true,
+--     MenuKeybind = false,          -- hide individual rows when needed
+-- })
+```
 
 ## Themes
 

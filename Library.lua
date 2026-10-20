@@ -44,7 +44,7 @@ Library.AutoTranslate = true
 
 -- ForceCheckbox swaps every Toggle's switch for a checkbox, like Obsidian's
 -- Library.ForceCheckbox. Set it through CreateWindow's ForceCheckbox option,
--- the Theme Manager's Toggle Style dropdown, or SetForceCheckbox below.
+-- the Interface Manager's Toggle Style dropdown, or SetForceCheckbox below.
 Library.ForceCheckbox = false
 
 -- Every toggle registers a skin rebuild here, so a Toggle Style switch
@@ -1690,7 +1690,7 @@ function Tab:Toggle(opts)
     local self_ = { Value = opts.Default == true }
     local skin
 
-    -- The visuals rebuild in place, so the Theme Manager's Toggle Style
+    -- The visuals rebuild in place, so the Interface Manager's Toggle Style
     -- dropdown can convert live toggles: each toggle registers a rebuild
     -- below and swaps between the switch and the tick box on call.
     local function buildSkin()
@@ -5318,12 +5318,15 @@ local OVERLAY_UI_SCALE = 1.1
 
 function Library:AddDraggableLabel(...)
     local params = select(1, ...)
-    local text, icon, iconPosition, startPosition
+    local text, icon, iconPosition, startPosition, requestedWindow
     if typeof(params) == "table" then
         text = params.Text
         icon = params.Icon
         iconPosition = params.IconPosition
         startPosition = params.Position
+        -- Optional owner window: with more than one window on screen the
+        -- newest one is not always the one the caller means.
+        requestedWindow = params.Window
     elseif typeof(params) == "string" then
         text = params
         icon = select(2, ...)
@@ -5338,6 +5341,9 @@ function Library:AddDraggableLabel(...)
     if typeof(startPosition) ~= "Vector2" then
         startPosition = nil
     end
+    if type(requestedWindow) ~= "table" then
+        requestedWindow = nil
+    end
     if typeof(iconPosition) ~= "string" then
         iconPosition = "left"
     end
@@ -5346,8 +5352,8 @@ function Library:AddDraggableLabel(...)
         iconPosition = "left"
     end
 
-    local window = Library.Windows[#Library.Windows]
-    if not window or not window.Gui then
+    local window = requestedWindow or Library.Windows[#Library.Windows]
+    if not window or not window.Gui or window._destroyed then
         warn("[Aster UI] AddDraggableLabel needs a window: create one first.")
         return nil
     end
@@ -10543,7 +10549,7 @@ function Tab:ThemeManager(opts)
     local themes, status, defaultRow, presets
     local weather, weatherMode, dim, transparent, dragSkeleton, islandStyle
     local background, backgroundInput, backgroundOpacity, backgroundLabel
-    local uiScale, density, adaptive, cornerRadius, toggleStyle
+    local uiScale, density, adaptive, cornerRadius
 
     local function notify(ok, title, detail)
         window:Notify({ Title = title, Content = detail, Type = ok and "Success" or "Error", Duration = 3 })
@@ -10646,33 +10652,6 @@ function Tab:ThemeManager(opts)
                 if style then
                     window:SetIslandStyle(style)
                 end
-            end,
-        })
-    end
-    if opts.ToggleStyle ~= false then
-        toggleStyle = host:Dropdown({
-            Name = "Toggle Style",
-            Options = { "Toggle", "Checkbox" },
-            -- The script's choice picks the starting option: ForceCheckbox in
-            -- CreateWindow, or Aster.ForceCheckbox set before the window.
-            Default = Library.ForceCheckbox and "Checkbox" or "Toggle",
-            AllowNone = false,
-            Callback = function(style)
-                if style then
-                    Library:SetForceCheckbox(style == "Checkbox")
-                end
-            end,
-        })
-    end
-    -- Opens the floating Keybind Menu, the same list Obsidian hangs off its
-    -- KeybindFrame. Stored on the window so the menu can keep this toggle in
-    -- step when it is opened or closed through the API.
-    if opts.KeybindMenu ~= false then
-        window._keybindMenuToggle = host:Toggle({
-            Name = "Keybind Menu",
-            Default = window.KeybindFrame ~= nil and window.KeybindFrame.Visible == true,
-            Callback = function(value)
-                window:SetKeybindMenu(value)
             end,
         })
     end
@@ -10954,9 +10933,6 @@ function Tab:ThemeManager(opts)
                 UIScale = uiScale and window:GetUIScale() or nil,
                 AdaptiveSize = if adaptive then window:GetAdaptiveSize() else nil,
                 Density = density and Library.Density or nil,
-                ToggleStyle = toggleStyle and (Library.ForceCheckbox and "Checkbox" or "Toggle") or nil,
-                KeybindMenu = if window._keybindMenuToggle and not window._keybindMenuToggle._destroyed
-                    and window.KeybindFrame then window.KeybindFrame.Visible == true else nil,
                 -- "" is no background; a missing field leaves it alone on load.
                 Background = background and (window.Background or "") or nil,
                 BackgroundTransparency = background and window.BackgroundTransparency or nil,
@@ -11022,14 +10998,18 @@ function Tab:ThemeManager(opts)
             if density and type(value.Density) == "string" then
                 density:Set(Library:SetDensity(value.Density), true)
             end
-            if toggleStyle and (value.ToggleStyle == "Toggle" or value.ToggleStyle == "Checkbox") then
+            -- Older theme configs carried these two settings. Their controls
+            -- now live in the Interface Manager, but the saved values still
+            -- apply so an old theme config keeps behaving the same.
+            if value.ToggleStyle == "Toggle" or value.ToggleStyle == "Checkbox" then
                 Library:SetForceCheckbox(value.ToggleStyle == "Checkbox")
-                toggleStyle:Set(value.ToggleStyle, true)
+                local style = window._interfaceToggleStyle
+                if style and not style._destroyed then
+                    style:Set(value.ToggleStyle, true)
+                end
             end
-            if window._keybindMenuToggle and not window._keybindMenuToggle._destroyed
-                and type(value.KeybindMenu) == "boolean" then
+            if type(value.KeybindMenu) == "boolean" then
                 window:SetKeybindMenu(value.KeybindMenu)
-                window._keybindMenuToggle:Set(value.KeybindMenu, true)
             end
             if background and tonumber(value.BackgroundTransparency) then
                 window:SetBackgroundTransparency(tonumber(value.BackgroundTransparency))
@@ -11059,9 +11039,267 @@ function Tab:ThemeManager(opts)
     return manager
 end
 
+-- The third ready-made manager: the settings that belong to the menu itself.
+-- It always drives this window, and it can own the draggable FPS/ping
+-- watermark so scripts do not have to build one by hand. Pass an existing
+-- draggable label as Watermark to control that one instead.
+function Tab:InterfaceManager(opts)
+    opts = normalize(opts, { Title = "Name" })
+    local host = managerHost(self, opts, "Interface", "monitor")
+    local window = self.Window
+    local manager = {}
+    local keybind, backdropToggle, cursorToggle, watermarkToggle, toggleStyle, keybindMenuToggle
+    local watermark = type(opts.Watermark) == "table" and type(opts.Watermark.SetVisible) == "function"
+        and not opts.Watermark.Destroyed and opts.Watermark or nil
+    local ownsWatermark = false
+    local autoCreated = false
+
+    if opts.Watermark ~= false and not watermark then
+        watermark = window._interfaceWatermark
+        if not watermark or watermark.Destroyed then
+            watermark = Library:AddDraggableLabel({
+                Window = window,
+                Text = (opts.WatermarkName or window.Title or "Aster UI") .. " | -- FPS | -- ms",
+                Position = opts.WatermarkPosition or Vector2.new(20, 70),
+            })
+            window._interfaceWatermark = watermark
+            autoCreated = true
+        end
+        ownsWatermark = watermark ~= nil
+    end
+
+    -- Hidden by default, like the snippet this manager replaces. A watermark
+    -- handed in by the script keeps whatever visibility it already had unless
+    -- WatermarkVisible says otherwise.
+    if watermark and not watermark.Destroyed then
+        if autoCreated then
+            watermark:SetVisible(opts.WatermarkVisible == true)
+        elseif opts.WatermarkVisible ~= nil then
+            watermark:SetVisible(opts.WatermarkVisible == true)
+        end
+    end
+
+    -- The readout is the only part of the watermark this manager maintains.
+    -- A label passed in by the script is left to the script's own updater.
+    if ownsWatermark and watermark and window._interfaceWatermarkBound ~= watermark then
+        window._interfaceWatermarkBound = watermark
+        local frames, elapsed = 0, 0
+        table.insert(window._connections, RunService.Heartbeat:Connect(function(deltaTime)
+            if window._destroyed or not watermark or watermark.Destroyed then
+                return
+            end
+            frames += 1
+            elapsed += deltaTime
+            if elapsed < 0.5 then
+                return
+            end
+            local fps = math.floor(frames / elapsed + 0.5)
+            frames, elapsed = 0, 0
+            local ping = 0
+            pcall(function()
+                ping = math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+            end)
+            if ping <= 0 then
+                pcall(function()
+                    ping = math.floor(LocalPlayer:GetNetworkPing() * 1000 + 0.5)
+                end)
+            end
+            watermark:SetText((opts.WatermarkName or window.Title or "Aster UI") .. " | " .. fps .. " FPS | " .. ping .. " ms")
+        end))
+    end
+    manager.Watermark = watermark
+
+    local function watermarkShown()
+        local pill = watermark and watermark.Label
+        return watermark ~= nil and not watermark.Destroyed and not (pill and pill.Visible == false)
+    end
+
+    if opts.MenuKeybind ~= false then
+        keybind = host:Keybind({
+            Name = "Menu Keybind",
+            Default = window.Keybind or "LeftAlt",
+            OnChanged = function(key)
+                if key then
+                    window:SetKeybind(key)
+                end
+            end,
+        })
+        window._interfaceKeybind = keybind
+    end
+
+    if window._backdrop and opts.Backdrop ~= false then
+        backdropToggle = host:Toggle({
+            Name = "Backdrop",
+            Default = window._backdropEnabled ~= false,
+            Callback = function(value)
+                window:SetBackdrop(value)
+            end,
+        })
+        window._interfaceBackdropToggle = backdropToggle
+    end
+
+    if opts.CustomCursor ~= false then
+        cursorToggle = host:Toggle({
+            Name = "Custom Cursor",
+            Default = window.ShowCustomCursor == true,
+            Callback = function(value)
+                window:SetShowCustomCursor(value)
+            end,
+        })
+        window._interfaceCursorToggle = cursorToggle
+    end
+
+    if watermark and not watermark.Destroyed and opts.Watermark ~= false then
+        watermarkToggle = host:Toggle({
+            Name = "Watermark",
+            Default = watermarkShown(),
+            Callback = function(value)
+                if watermark and not watermark.Destroyed then
+                    watermark:SetVisible(value)
+                end
+            end,
+        })
+        window._interfaceWatermarkToggle = watermarkToggle
+    end
+
+    if opts.ToggleStyle ~= false then
+        toggleStyle = host:Dropdown({
+            Name = "Toggle Style",
+            Options = { "Toggle", "Checkbox" },
+            -- The script's choice picks the starting option: ForceCheckbox in
+            -- CreateWindow, or Aster.ForceCheckbox set before the window.
+            Default = Library.ForceCheckbox and "Checkbox" or "Toggle",
+            AllowNone = false,
+            Callback = function(style)
+                if style then
+                    Library:SetForceCheckbox(style == "Checkbox")
+                end
+            end,
+        })
+        window._interfaceToggleStyle = toggleStyle
+    end
+
+    -- Opens the floating Keybind Menu, the same list Obsidian hangs off its
+    -- KeybindFrame. Stored on the window so the menu can keep this toggle in
+    -- step when it is opened or closed through the API.
+    if opts.KeybindMenu ~= false then
+        keybindMenuToggle = host:Toggle({
+            Name = "Keybind Menu",
+            Default = window.KeybindFrame ~= nil and window.KeybindFrame.Visible == true,
+            Callback = function(value)
+                window:SetKeybindMenu(value)
+            end,
+        })
+        window._keybindMenuToggle = keybindMenuToggle
+    end
+
+    if opts.Unload ~= false then
+        host:Button({
+            Name = "Unload",
+            Icon = "power",
+            Style = "Danger",
+            Callback = function()
+                window:Confirm({
+                    Title = "Unload " .. (window.Title or "Aster UI") .. "?",
+                    Content = "Every feature is switched off and the menu closes.",
+                    Icon = "power",
+                    ConfirmText = "Unload",
+                    Callback = function()
+                        window:Destroy()
+                    end,
+                })
+            end,
+        })
+    end
+
+    -- Pull the widgets back in line with the window, for scripts that change
+    -- these options through the API rather than through the manager.
+    function manager:Refresh()
+        if keybind and not keybind._destroyed then
+            keybind:Set(window.Keybind, true)
+        end
+        if backdropToggle and not backdropToggle._destroyed then
+            backdropToggle:Set(window._backdropEnabled ~= false, true)
+        end
+        if cursorToggle and not cursorToggle._destroyed then
+            cursorToggle:Set(window.ShowCustomCursor == true, true)
+        end
+        if watermarkToggle and not watermarkToggle._destroyed then
+            watermarkToggle:Set(watermarkShown(), true)
+        end
+        if toggleStyle and not toggleStyle._destroyed then
+            toggleStyle:Set(Library.ForceCheckbox and "Checkbox" or "Toggle", true)
+        end
+        if keybindMenuToggle and not keybindMenuToggle._destroyed then
+            keybindMenuToggle:Set(window.KeybindFrame ~= nil and window.KeybindFrame.Visible == true, true)
+        end
+    end
+
+    -- One hidden flag carries the whole panel, so a config reloads the menu's
+    -- own settings without each row counting as a running feature.
+    if opts.Flag ~= false then
+        local flag = type(opts.Flag) == "string" and opts.Flag or "__Interface"
+        local interface = { _type = "Interface", _searchName = "Interface", _searchKey = "interface", _listeners = {} }
+
+        function interface:Get()
+            local bind = keybind and keybind:Get() or nil
+            return {
+                MenuKey = bind and bind.Name or nil,
+                Backdrop = if backdropToggle then backdropToggle:Get() else nil,
+                CustomCursor = if cursorToggle then cursorToggle:Get() else nil,
+                Watermark = if watermarkToggle then watermarkToggle:Get() else nil,
+                ToggleStyle = toggleStyle and toggleStyle:Get() or nil,
+                KeybindMenu = if keybindMenuToggle then keybindMenuToggle:Get() else nil,
+            }
+        end
+
+        function interface:Set(value)
+            if type(value) ~= "table" then
+                return
+            end
+            if keybind and not keybind._destroyed and value.MenuKey ~= nil then
+                local bind = Keybinds.Resolve(value.MenuKey)
+                if bind then
+                    keybind:Set(bind, true)
+                    window:SetKeybind(bind)
+                end
+            end
+            if backdropToggle and not backdropToggle._destroyed and type(value.Backdrop) == "boolean" then
+                backdropToggle:Set(value.Backdrop, true)
+                window:SetBackdrop(value.Backdrop)
+            end
+            if cursorToggle and not cursorToggle._destroyed and type(value.CustomCursor) == "boolean" then
+                cursorToggle:Set(value.CustomCursor, true)
+                window:SetShowCustomCursor(value.CustomCursor)
+            end
+            if watermarkToggle and not watermarkToggle._destroyed and type(value.Watermark) == "boolean" then
+                watermarkToggle:Set(value.Watermark, true)
+                if watermark and not watermark.Destroyed then
+                    watermark:SetVisible(value.Watermark)
+                end
+            end
+            if toggleStyle and not toggleStyle._destroyed
+                and (value.ToggleStyle == "Toggle" or value.ToggleStyle == "Checkbox") then
+                Library:SetForceCheckbox(value.ToggleStyle == "Checkbox")
+                toggleStyle:Set(value.ToggleStyle, true)
+            end
+            if keybindMenuToggle and not keybindMenuToggle._destroyed and type(value.KeybindMenu) == "boolean" then
+                keybindMenuToggle:Set(value.KeybindMenu, true)
+                window:SetKeybindMenu(value.KeybindMenu)
+            end
+        end
+
+        Library.Flags[flag] = interface
+        window:_flagCreated(flag, interface)
+    end
+
+    return manager
+end
+
 Tab.CreateButtonRow = Tab.ButtonRow
 Tab.CreateConfigManager = Tab.ConfigManager
 Tab.CreateThemeManager = Tab.ThemeManager
+Tab.CreateInterfaceManager = Tab.InterfaceManager
 
 -- Status: read-only key/value lines, mostly for groupboxes, in several styles.
 
@@ -19296,6 +19534,10 @@ function Window:SetBackdrop(enabled)
         return
     end
     self._backdropEnabled = enabled ~= false
+    local toggle = self._interfaceBackdropToggle
+    if toggle and not toggle._destroyed then
+        toggle:Set(self._backdropEnabled, true)
+    end
     self:_refreshBackdrop(true)
 end
 
@@ -20813,6 +21055,10 @@ end
 
 function Window:SetShowCustomCursor(enabled)
     self.ShowCustomCursor = enabled ~= false
+    local toggle = self._interfaceCursorToggle
+    if toggle and not toggle._destroyed then
+        toggle:Set(self.ShowCustomCursor, true)
+    end
     self:_refreshCursor()
 end
 
@@ -20878,6 +21124,10 @@ function Window:SetKeybind(key)
     self.Keybind = Keybinds.Resolve(key)
     if self._keyChipLabel then
         self._keyChipLabel.Text = keyName(self.Keybind)
+    end
+    local bind = self._interfaceKeybind
+    if bind and not bind._destroyed and bind:Get() ~= self.Keybind then
+        bind:Set(self.Keybind, true)
     end
 end
 

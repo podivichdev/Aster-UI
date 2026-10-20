@@ -4,9 +4,8 @@
     Loads the library from GitHub and builds a demo window: a paged
     widget showcase on the Main tab (buttons on top switch pages, each
     page spreads its groupboxes over the left and right columns) and a
-    Config tab mirroring a real script's settings (interface options,
-    config manager, theme manager), plus the draggable FPS/ping
-    watermark from the library.
+    Config tab mirroring a real script's settings (the built-in
+    Interface, Config and Theme managers).
 ]]
 
 local Aster = loadstring(game:HttpGet("https://raw.githubusercontent.com/podivichdev/Aster-UI/main/Library.lua"))()
@@ -27,37 +26,6 @@ local Window = Aster:CreateWindow({
         Stats = { "Players", "Session", "FPS", "Ping" },
     },
 })
-
--- Watermark ----------------------------------------------------------
--- The library's draggable label: a floating chip you can grab and drop
--- anywhere. It refreshes with the current FPS and ping every half
--- second, and the "Watermark" toggle in the Config tab shows/hides it
--- (off by default). It starts a little in from the top-left corner.
-
-local RunService = game:GetService("RunService")
-local Stats = game:GetService("Stats")
-
-local Watermark = Aster:AddDraggableLabel({
-    Text = "Aster UI | -- FPS | -- ms",
-    Position = Vector2.new(20, 70),
-})
-Watermark:SetVisible(false) -- hidden until the Config tab toggle turns it on
-
-local frames, elapsed = 0, 0
-RunService.Heartbeat:Connect(function(deltaTime)
-    frames += 1
-    elapsed += deltaTime
-    if elapsed < 0.5 then
-        return
-    end
-    local fps = math.floor(frames / elapsed + 0.5)
-    frames, elapsed = 0, 0
-    local ping = 0
-    pcall(function()
-        ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
-    end)
-    Watermark:SetText("Aster UI | " .. fps .. " FPS | " .. ping .. " ms")
-end)
 
 local Main = Window:Tab({
     Name = "Main",
@@ -249,87 +217,15 @@ for _, page in ipairs({
 end
 
 -- Config tab ---------------------------------------------------------
--- What a real script keeps in its settings: the options that drive the
--- menu itself, the ready-made config manager (create, save, load,
--- delete, rename, reset, autoload, share codes) and the theme manager
--- (themes, backgrounds, weather).
--- Naming note: Tab:Create* and group:Create* are aliases of the plain
+-- What a real script keeps in its settings: the built-in managers.
+-- InterfaceManager owns the menu's own options (menu keybind, backdrop,
+-- custom cursor, the draggable FPS/ping watermark, Toggle Style, the
+-- Keybind Menu toggle and a confirmed Unload button); ConfigManager
+-- handles saved configs; ThemeManager handles themes, backgrounds and
+-- weather. Tab:Create* and group:Create* are aliases of the plain
 -- names (Tab:Toggle == Tab:CreateToggle), both styles are the same call.
 
-local interface = Config:AddLeftGroupbox({ Name = "Interface", Icon = "monitor" })
-
-interface:CreateKeybind({
-    Name = "Menu key",
-    CurrentKeybind = "RightControl",
-    Flag = "MenuKey",
-    OnChanged = function(key)
-        if key then
-            Window:SetKeybind(key)
-        end
-    end,
-})
-
-interface:CreateDropdown({
-    Name = "Toggle button",
-    Options = { "Mobile only", "Mobile & PC" },
-    CurrentOption = "Mobile only",
-    AllowNone = false,
-    Flag = "ToggleButtonPlatform",
-    Callback = function(option)
-        Window:SetToggleButtonPlatform(option == "Mobile & PC" and "Both" or "Mobile")
-    end,
-})
-
-interface:CreateToggle({
-    Name = "Backdrop",
-    CurrentValue = true,
-    Flag = "Backdrop",
-    Callback = function(value)
-        Window:SetBackdrop(value)
-    end,
-})
-
-interface:CreateToggle({
-    Name = "Custom cursor",
-    CurrentValue = false,
-    Flag = "CustomCursor",
-    Callback = function(value)
-        Window:SetShowCustomCursor(value)
-    end,
-})
-
-interface:CreateToggle({
-    Name = "Watermark",
-    CurrentValue = false,
-    Flag = "Watermark",
-    Callback = function(value)
-        Watermark:SetVisible(value)
-    end,
-})
-
-interface:CreateButton({
-    Name = "Keybind menu",
-    Icon = "keyboard",
-    Callback = function()
-        Window:ToggleKeybindMenu()
-    end,
-})
-
-interface:CreateButton({
-    Name = "Unload",
-    Icon = "power",
-    Callback = function()
-        Window:Confirm({
-            Title = "Unload?",
-            Content = "Every feature is switched off and the menu closes.",
-            ConfirmText = "Unload",
-            Callback = function()
-                Window:Destroy()
-            end,
-        })
-    end,
-})
-
+Config:InterfaceManager({ Side = "Left" })
 Config:CreateConfigManager({ Name = "Configs", Side = "Left" })
 Config:CreateThemeManager({ Name = "Themes", Side = "Right" })
 

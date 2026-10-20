@@ -64,6 +64,7 @@ A demo of the common widgets is in [`Example.lua`](./Example.lua): a paged Main 
 | `AutoTranslate` | bool | Whether Roblox may auto-translate the UI. `false` sets `AutoLocalize = false` on every text element, so text reads exactly as written. Default `true` (can also be preset as `Aster.AutoTranslate = false`). |
 | `AlwaysOnTop` | bool | Renders the UI above Roblox's core blur (the overlay behind the Roblox menu) through the hidden `OnTopOfCoreBlur` ScreenGui property. Executor-only; silently ignored where unsupported. Default `false`. |
 | `ForceCheckbox` | bool | Renders every `Toggle` as a checkbox instead of a switch, like Obsidian's `Library.ForceCheckbox`. Module-wide; switching it converts live toggles in place (Theme Manager's **Toggle Style** dropdown, `Aster:SetForceCheckbox(bool)`, or a loaded config). Default `false` (can also be preset as `Aster.ForceCheckbox = true`). |
+| `KeybindMenu` | bool | Starts the floating Keybind Menu open. Like Obsidian's keybind frame it is hidden by default; open it with `Window:SetKeybindMenu(bool)`, `Window:ToggleKeybindMenu()`, the Theme Manager's **Keybind Menu** toggle, or `Aster.KeybindFrame.Visible = true`. |
 | `Size` | `UDim2` | Default `760x520`. |
 | `Theme` / `DefaultTheme` | string | Theme name from `Aster.ThemePresets`. Default `"Cybrion"`. |
 | `Weather` | string | Backdrop weather: `Snow`, `Rain`, `Hell Fire`, `Sakura`, `Fireflies`, `Matrix`, `None`. Default `Matrix`. |
@@ -161,6 +162,7 @@ Window:Toggle(open)  Window:Minimize()  Window:Restore()  Window:SetMinimized(bo
 Window:SetKeybind(Enum.KeyCode.X)  -- or "MB2" / Enum.UserInputType.MouseButton2
 Window:SetKeepOnScreen(bool)  Window:SetTransparent(bool)  Window:SetAlwaysOnTop(bool)
 Window:SetUnlockMouseWhileOpen(bool)  Window:SetShowCustomCursor(bool)  Window:SetAutoTranslate(bool)
+Window:SetKeybindMenu(bool)  Window:ToggleKeybindMenu()
 Window:SelectTab(tab)  Window:SetHideName(bool)  Window:SetHideAvatar(bool)
 
 -- look
@@ -196,6 +198,7 @@ Window:Destroy()
 Aster:CreateWindow(opts)          Aster.Flags
 Aster:Notify(opts)                Aster.ThemePresets
 Aster:AddDraggableLabel(...)      Aster.Windows
+Aster.KeybindFrame                Aster.KeybindMenu
 Aster:SetTheme(name)              Aster.DensityModes  -- Compact / Default / Comfortable
 Aster:SetDefaultTheme(name)       Aster:PreloadIcons()
 Aster:SetDensity(mode)            Aster:LoadFont({ Name = "ValleySans" })
@@ -219,6 +222,20 @@ Watermark:SetIconPosition("right")            -- "left" (default) or "right"
 Watermark:SetVisible(false)
 Watermark:Destroy()
 ```
+
+### Keybind menu
+
+Every `Keybind` widget in the script is listed on one floating menu, Obsidian-style: `[F] Flight`, `[None] Speed`, in creation order across every tab, sub tab and groupbox. Key captures, `Set` calls and destroyed elements update the list live. The menu is draggable by its title bar, folds to the title bar with the chevron, draws 10% larger than the window's UI scale, follows the theme, and starts at Obsidian's default spot — left edge, vertically centred. It is hidden by default.
+
+```lua
+Window:SetKeybindMenu(true)          -- open
+Window:ToggleKeybindMenu()           -- open / close
+Aster.KeybindFrame.Visible = true    -- the same frame, raw Roblox style
+Aster.KeybindMenu:SetCollapsed(true) -- fold to the title bar
+Aster.KeybindMenu:Refresh()          -- rebuild after adding elements
+```
+
+`CreateWindow({ KeybindMenu = true })` starts it open. `Tab:ThemeManager()` also gets a **Keybind Menu** toggle. Each window owns one (`Window.KeybindFrame` / `Window.KeybindMenu`); `Aster.KeybindFrame` and `Aster.KeybindMenu` point at the newest window's, like Obsidian.
 
 ## Themes
 

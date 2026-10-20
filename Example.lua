@@ -308,6 +308,14 @@ interface:CreateToggle({
 })
 
 interface:CreateButton({
+    Name = "Keybind menu",
+    Icon = "keyboard",
+    Callback = function()
+        Window:ToggleKeybindMenu()
+    end,
+})
+
+interface:CreateButton({
     Name = "Unload",
     Icon = "power",
     Callback = function()

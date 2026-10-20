@@ -51,10 +51,6 @@ Library.ForceCheckbox = false
 -- converts the live toggles in place instead of only the ones created next.
 Library._toggleSkins = {}
 
--- Every Keybind widget registers here, in creation order, so the Keybind Menu
--- can list every bind in the script no matter which tab or groupbox it lives
--- in, and follow key changes and destroyed elements live.
-Library._keybindEntries = {}
 -- One floating Keybind Menu per window. Library.KeybindFrame and
 -- Library.KeybindMenu point at the newest one, like Obsidian.
 Library._keybindMenus = {}
@@ -3232,9 +3228,13 @@ function Tab:Keybind(opts)
         if not silent then
             safeCall(opts.OnChanged, self_.Value)
         end
-        -- The Keybind Menu shows the bind's current key; keep it in step with
-        -- captures, config loads and Set calls.
-        Library:_refreshKeybindMenus()
+        -- The Keybind Menu owns exactly one row per bind. Update only this
+        -- bind's row; captures and config loads can call Set many times and
+        -- none of them rebuild the list.
+        local keybindMenu = self_._keybindMenu
+        if keybindMenu and not keybindMenu.Destroyed then
+            keybindMenu:_updateRow(self_)
+        end
     end
 
     chip.MouseButton1Click:Connect(function()
@@ -3296,17 +3296,23 @@ function Tab:Keybind(opts)
         end
     end
     local element = finishElement(self, opts, self_, frame, "Keybind")
-    -- The Keybind Menu lists this element from now on. The display name is
-    -- the same one the element registered for search, with the widget's own
-    -- fallback when the script left Name empty.
-    element._keybindWindow = self.Window
+    -- One persistent row per bind, created with the widget and updated in
+    -- place afterwards. The display name is the same one the element
+    -- registered for search, with the widget's own fallback when the script
+    -- left Name empty. The Keybind Menu exists before the window's tabs, so
+    -- it is ready here.
     element._keybindName = element._searchName ~= "" and element._searchName or "Keybind"
-    table.insert(Library._keybindEntries, element)
-    Library:_refreshKeybindMenus()
+    local keybindMenu = self.Window.KeybindMenu
+    if keybindMenu and not keybindMenu.Destroyed then
+        keybindMenu:AddRow(element)
+    end
     local destroyElement = element.Destroy
     function element.Destroy(instance)
+        local menu = element._keybindMenu
         destroyElement(instance)
-        Library:_refreshKeybindMenus()
+        if menu and not menu.Destroyed then
+            menu:RemoveRow(element)
+        end
     end
     return element
 end
@@ -5168,9 +5174,9 @@ function Library.Window(_, opts)
 
     table.insert(Library.Windows, self)
 
-    -- Obsidian's Keybind Menu: a floating list of every Keybind in the script,
-    -- hidden until opened (Window:SetKeybindMenu, the Theme Manager toggle, or
-    -- KeybindMenu = true here).
+    -- Obsidian's Keybind Menu: a floating list of every Keybind in this
+    -- window, hidden until opened (Window:SetKeybindMenu, the Theme Manager
+    -- toggle, or KeybindMenu = true here).
     local keybindMenu = Library:_createKeybindMenu(self)
     if opts.KeybindMenu == true then
         keybindMenu:SetVisible(true)
@@ -5621,10 +5627,12 @@ end
 -- this library already uses for draggable labels. It floats over the window,
 -- starts at the same spot as Obsidian's (left edge, vertically centred),
 -- lists every Keybind widget of its window as "[Key] Name" (or "[None] Name"),
--- follows key captures, Set calls and destroyed elements live, drags by the
--- title bar and folds to the title bar when the chevron is pressed. It is
--- created hidden with every window; Window:SetKeybindMenu opens it and
--- CreateWindow's KeybindMenu = true starts it open.
+-- drags by the title bar and folds to the title bar when the chevron is
+-- pressed. Like Obsidian, there is one row per Keybind, created with the
+-- widget and updated in place, so opening/closing the menu and changing a key
+-- never rebuild the list. It is created hidden with every window;
+-- Window:SetKeybindMenu opens it and CreateWindow's KeybindMenu = true starts
+-- it open.
 function Library:_createKeybindMenu(window)
     local gui = window.Gui
     local HEADER_H = 34
@@ -5634,10 +5642,16 @@ function Library:_createKeybindMenu(window)
     local BODY_PAD_Y = 8
     local MIN_WIDTH = 140
 
+    -- AutoSize is the whole layout: rows are auto-width labels, the body
+    -- wraps their width and height, and the frame wraps the body. Nothing
+    -- measures text or resizes the panel by hand, so a key change is one
+    -- label update and opening the menu is just a Visible change.
     local frame = create("Frame", {
         Name = "KeybindFrame",
-        AutomaticSize = Enum.AutomaticSize.Y,
-        Size = UDim2.fromOffset(MIN_WIDTH, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 6, 0.5, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Size = UDim2.fromOffset(0, 0),
         BackgroundColor3 = Theme.Background,
         BorderSizePixel = 0,
         Visible = false,
@@ -5646,6 +5660,11 @@ function Library:_createKeybindMenu(window)
     })
     corner(frame, UDim.new(0, 6))
     stroke(frame, Theme.Stroke)
+    create("UISizeConstraint", {
+        MinSize = Vector2.new(MIN_WIDTH, 0),
+        MaxSize = Vector2.new(100000, 100000),
+        Parent = frame,
+    })
     local scaleObject = create("UIScale", {
         Scale = window:GetUIScale() * OVERLAY_UI_SCALE,
         Parent = frame,
@@ -5662,24 +5681,13 @@ function Library:_createKeybindMenu(window)
     })
     local title = label({
         Position = UDim2.fromOffset(BODY_PAD_X, 0),
-        Size = UDim2.new(0, 0, 0, HEADER_H),
+        Size = UDim2.fromOffset(0, HEADER_H),
         AutomaticSize = Enum.AutomaticSize.X,
         Text = "Keybinds",
         TextSize = 13,
         FontFace = Fonts.Bold,
         TextTruncate = Enum.TextTruncate.None,
         ZIndex = 2,
-        Parent = header,
-    })
-    -- Rows ellipsize, so their TextBounds is not a reliable natural width.
-    -- Measure the same text on an invisible auto-width label instead, the
-    -- same pattern the dropdown chips use.
-    local measure = label({
-        Visible = false,
-        Size = UDim2.fromOffset(0, ROW_H),
-        AutomaticSize = Enum.AutomaticSize.X,
-        TextSize = 13,
-        TextTruncate = Enum.TextTruncate.None,
         Parent = header,
     })
 
@@ -5716,8 +5724,8 @@ function Library:_createKeybindMenu(window)
     })
     local body = create("Frame", {
         Position = UDim2.fromOffset(0, HEADER_H + 1),
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Size = UDim2.fromOffset(0, 0),
         BackgroundTransparency = 1,
         ZIndex = 1,
         Parent = frame,
@@ -5737,127 +5745,154 @@ function Library:_createKeybindMenu(window)
         Destroyed = false,
         Label = frame,
         _scale = scaleObject,
-        _rows = {},
-        _count = 0,
-        _contentHeight = HEADER_H,
+        _entries = {},
+        _rowCount = 0,
+        _nextRowOrder = 0,
+        _emptyRow = nil,
         _connections = {},
     }
 
-    -- The menu uses the same pixel-offset placement and clamping as the
-    -- draggable labels; the default spot is Obsidian's left-centre position.
-    local offset = Vector2.new(6, 6)
-    local centered = true
-    local placeQueued = false
-
-    local function panelHeight()
-        local height = frame.AbsoluteSize.Y
-        if height > 0 then
-            return height
-        end
-        return math.max(menu._contentHeight, HEADER_H) * scaleObject.Scale
-    end
-
-    local function panelWidth()
-        local width = frame.AbsoluteSize.X
-        if width > 0 then
-            return width
-        end
-        return MIN_WIDTH * scaleObject.Scale
-    end
-
-    local function queuePlace()
-        if placeQueued or menu.Destroyed then
+    -- One placeholder while the list is empty. It is created and destroyed
+    -- with the 0<->1 transitions instead of staying hidden: some Roblox
+    -- versions still reserve layout space for invisible children.
+    function menu:_syncEmpty()
+        if menu.Destroyed or not body.Parent then
             return
         end
-        placeQueued = true
-        RunService.RenderStepped:Once(function()
-            placeQueued = false
-            if not menu.Destroyed and frame.Parent then
-                menu:_place()
+        if menu._rowCount == 0 then
+            if not menu._emptyRow then
+                menu._emptyRow = label({
+                    Size = UDim2.fromOffset(0, ROW_H),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    LayoutOrder = 0,
+                    Text = "No keybinds yet",
+                    TextSize = 13,
+                    TextColor3 = Theme.Muted,
+                    TextTruncate = Enum.TextTruncate.None,
+                    ZIndex = 2,
+                    Parent = body,
+                })
             end
-        end)
+        elseif menu._emptyRow then
+            menu._emptyRow:Destroy()
+            menu._emptyRow = nil
+        end
     end
 
-    local function placeAt(point)
+    -- The only work a key change does: rewrite this bind's row. The label is
+    -- already parented; AutoSize handles the new width and height.
+    function menu:_updateRow(element)
+        local row = element._keybindRow
+        if not row or not row.Parent then
+            return
+        end
+        local value = element.Value
+        local text = "[" .. keyName(value) .. "] " .. (element._keybindName or "Keybind")
+        if row.Text ~= text then
+            row.Text = text
+        end
+        local bound = typeof(value) == "EnumItem"
+        if element._keybindBound ~= bound then
+            element._keybindBound = bound
+            local color = bound and Theme.Text or Theme.Muted
+            row.TextColor3 = color
+            bindColors(row, { TextColor3 = color })
+        end
+    end
+
+    function menu:AddRow(element)
+        if menu.Destroyed or not body.Parent or element._keybindRow or menu._entries[element] then
+            return
+        end
+        if menu._emptyRow then
+            menu._emptyRow:Destroy()
+            menu._emptyRow = nil
+        end
+        menu._nextRowOrder += 1
+        local row = label({
+            Size = UDim2.fromOffset(0, ROW_H),
+            AutomaticSize = Enum.AutomaticSize.X,
+            LayoutOrder = menu._nextRowOrder,
+            Text = "",
+            TextSize = 13,
+            TextTruncate = Enum.TextTruncate.None,
+            ZIndex = 2,
+            Parent = body,
+        })
+        element._keybindRow = row
+        element._keybindMenu = menu
+        element._keybindBound = nil
+        menu._entries[element] = row
+        menu._rowCount += 1
+        menu:_updateRow(element)
+    end
+
+    function menu:RemoveRow(element)
+        local row = element._keybindRow
+        element._keybindRow = nil
+        element._keybindMenu = nil
+        element._keybindBound = nil
+        if menu._entries[element] then
+            menu._entries[element] = nil
+            menu._rowCount = math.max(menu._rowCount - 1, 0)
+        end
+        if row then
+            row:Destroy()
+        end
+        menu:_syncEmpty()
+    end
+
+    -- Kept for callers that want to force a repaint. It only rewrites the
+    -- existing rows; it never destroys and recreates them.
+    function menu:Refresh()
         if menu.Destroyed then
             return
         end
-        local view = gui.AbsoluteSize
-        if view.X <= 0 or view.Y <= 0 then
-            -- Same first-frame case as the draggable labels: the screen gui
-            -- has no size yet, so take the point and clamp once it does.
-            offset = Vector2.new(math.max(point.X, 0), math.max(point.Y, 0))
-            frame.Position = UDim2.fromOffset(offset.X, offset.Y)
-            if centered then
-                queuePlace()
-            end
-            return
-        end
-        local bound = view - Vector2.new(panelWidth(), panelHeight())
-        offset = Vector2.new(
-            math.clamp(point.X, 0, math.max(bound.X, 0)),
-            math.clamp(point.Y, 0, math.max(bound.Y, 0))
-        )
-        frame.Position = UDim2.fromOffset(offset.X, offset.Y)
-    end
-
-    function menu:_place()
-        if menu.Destroyed then
-            return
-        end
-        if centered then
-            local view = gui.AbsoluteSize
-            if view.Y <= 0 then
-                placeAt(Vector2.new(6, 0))
+        local stale
+        for element, row in pairs(menu._entries) do
+            if element._destroyed or not element._keybindRow or not row or not row.Parent then
+                stale = stale or {}
+                table.insert(stale, element)
             else
-                placeAt(Vector2.new(6, (view.Y - panelHeight()) / 2))
+                menu:_updateRow(element)
             end
-        else
-            placeAt(offset)
         end
+        if stale then
+            for _, element in ipairs(stale) do
+                menu:RemoveRow(element)
+            end
+        end
+        menu:_syncEmpty()
     end
 
-    local fitting = false
-    local function fitWidth()
-        if menu.Destroyed or fitting then
+    -- The frame keeps its AnchorPoint (0, 0.5), exactly like Obsidian's. The
+    -- engine keeps the menu vertically centred as AutoSize grows it, so only
+    -- dragging needs position work, and that work is a clamp.
+    local function clampPosition(xOffset, yOffset)
+        if menu.Destroyed then
             return
         end
-        fitting = true
-        local width = title.TextBounds.X + BODY_PAD_X + 34
-        for _, row in ipairs(menu._rows) do
-            measure.Text = row.Text
-            width = math.max(width, measure.TextBounds.X + BODY_PAD_X * 2)
-        end
-        width = math.max(width, MIN_WIDTH)
         local view = gui.AbsoluteSize
-        if view.X > 0 then
-            -- A very long name ellipsizes instead of pushing the panel past
-            -- the screen edge.
-            width = math.min(width, view.X / math.max(scaleObject.Scale, 0.01) - 12)
+        local position
+        if view.X <= 0 or view.Y <= 0 then
+            position = UDim2.new(0, math.max(xOffset, 0), 0.5, yOffset)
+        else
+            local size = frame.AbsoluteSize
+            local x = math.clamp(xOffset, 0, math.max(view.X - size.X, 0))
+            local top = view.Y * 0.5 + yOffset - size.Y * 0.5
+            top = math.clamp(top, 0, math.max(view.Y - size.Y, 0))
+            position = UDim2.new(0, x, 0.5, (top + size.Y * 0.5) - view.Y * 0.5)
         end
-        -- Collapsed frames have AutoSize off, so keep the title bar height.
-        frame.Size = UDim2.fromOffset(math.max(width, 100), menu.Collapsed and HEADER_H or 0)
-        fitting = false
+        -- Position writes reached from AbsoluteSize can otherwise re-enter
+        -- rendering even when the clamp did not move the frame.
+        if frame.Position ~= position then
+            frame.Position = position
+        end
     end
-    title:GetPropertyChangedSignal("TextBounds"):Connect(fitWidth)
-    measure:GetPropertyChangedSignal("TextBounds"):Connect(fitWidth)
 
     menu._reclamp = function()
-        if menu.Destroyed then
-            return
-        end
-        fitWidth()
-        menu:_place()
-        queuePlace()
-    end
-
-    function menu:_updateHeight()
-        if menu.Collapsed then
-            menu._contentHeight = HEADER_H
-        else
-            local rows = menu._count
-            menu._contentHeight = HEADER_H + 1 + BODY_PAD_Y * 2
-                + rows * ROW_H + math.max(rows - 1, 0) * ROW_GAP
+        if not menu.Destroyed then
+            clampPosition(frame.Position.X.Offset, frame.Position.Y.Offset)
         end
     end
 
@@ -5872,76 +5907,26 @@ function Library:_createKeybindMenu(window)
         if menu.Destroyed or collapsed == menu.Collapsed then
             return
         end
-        menu.Collapsed = collapsed
+        -- Read the width before hiding the body: once the body is invisible
+        -- AutoSize may already have shrunk the frame.
+        local width
         if collapsed then
-            -- AutoSize off for the title-bar-only state, like Obsidian's
-            -- keybind frame; the width the menu already had is kept.
-            frame.AutomaticSize = Enum.AutomaticSize.None
-            frame.Size = UDim2.fromOffset(math.max(frame.Size.X.Offset, 100), HEADER_H)
-        else
-            frame.AutomaticSize = Enum.AutomaticSize.Y
-            frame.Size = UDim2.fromOffset(math.max(frame.Size.X.Offset, 100), 0)
+            width = frame.AbsoluteSize.X / math.max(scaleObject.Scale, 0.01)
         end
+        menu.Collapsed = collapsed
         renderCollapse()
-        menu:_updateHeight()
-        queuePlace()
+        if collapsed then
+            frame.AutomaticSize = Enum.AutomaticSize.None
+            frame.Size = UDim2.fromOffset(math.max(width, MIN_WIDTH), HEADER_H)
+        else
+            frame.AutomaticSize = Enum.AutomaticSize.XY
+            frame.Size = UDim2.fromOffset(0, 0)
+        end
+        menu:_reclamp()
     end
 
     function menu:ToggleCollapsed()
         menu:SetCollapsed(not menu.Collapsed)
-    end
-
-    function menu:Refresh()
-        if menu.Destroyed then
-            return
-        end
-        for index = #Library._keybindEntries, 1, -1 do
-            local entry = Library._keybindEntries[index]
-            local owner = entry._keybindWindow
-            if entry._destroyed or not owner or owner._destroyed
-                or not entry._frame or not entry._frame.Parent then
-                table.remove(Library._keybindEntries, index)
-            end
-        end
-        for _, row in ipairs(menu._rows) do
-            row:Destroy()
-        end
-        table.clear(menu._rows)
-        local order = 0
-        for _, entry in ipairs(Library._keybindEntries) do
-            if entry._keybindWindow == window then
-                local value = entry.Value
-                order += 1
-                local row = label({
-                    Size = UDim2.new(1, 0, 0, ROW_H),
-                    LayoutOrder = order,
-                    Text = "[" .. keyName(value) .. "] " .. (entry._keybindName or "Keybind"),
-                    TextSize = 13,
-                    TextColor3 = typeof(value) == "EnumItem" and Theme.Text or Theme.Muted,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    ZIndex = 2,
-                    Parent = body,
-                })
-                table.insert(menu._rows, row)
-            end
-        end
-        if #menu._rows == 0 then
-            local row = label({
-                Size = UDim2.new(1, 0, 0, ROW_H),
-                LayoutOrder = 1,
-                Text = "No keybinds yet",
-                TextSize = 13,
-                TextColor3 = Theme.Muted,
-                TextTruncate = Enum.TextTruncate.AtEnd,
-                ZIndex = 2,
-                Parent = body,
-            })
-            table.insert(menu._rows, row)
-        end
-        menu._count = #menu._rows
-        menu:_updateHeight()
-        fitWidth()
-        queuePlace()
     end
 
     function menu:SetVisible(visible)
@@ -5949,9 +5934,6 @@ function Library:_createKeybindMenu(window)
             return
         end
         frame.Visible = visible ~= false
-        if frame.Visible then
-            queuePlace()
-        end
     end
 
     function menu:ToggleVisible()
@@ -5963,6 +5945,8 @@ function Library:_createKeybindMenu(window)
             return
         end
         menu.Destroyed = true
+        table.clear(menu._entries)
+        menu._emptyRow = nil
         for index = #Library._keybindMenus, 1, -1 do
             if Library._keybindMenus[index] == menu then
                 table.remove(Library._keybindMenus, index)
@@ -6002,8 +5986,7 @@ function Library:_createKeybindMenu(window)
     end
 
     local dragging = false
-    local dragMoved = false
-    local dragOrigin = Vector2.zero
+    local dragOriginX, dragOriginY = 6, 0
     local dragStart = Vector2.zero
 
     track(header.InputBegan:Connect(function(input)
@@ -6015,8 +5998,8 @@ function Library:_createKeybindMenu(window)
             return
         end
         dragging = true
-        dragMoved = false
-        dragOrigin = offset
+        dragOriginX = frame.Position.X.Offset
+        dragOriginY = frame.Position.Y.Offset
         dragStart = pointerPosition()
     end))
 
@@ -6024,16 +6007,8 @@ function Library:_createKeybindMenu(window)
         if menu.Destroyed or not dragging or not isMove(input) then
             return
         end
-        if not dragMoved then
-            if (pointerPosition() - dragStart).Magnitude < 3 then
-                return
-            end
-            dragMoved = true
-            centered = false
-            dragOrigin = offset
-            dragStart = pointerPosition()
-        end
-        placeAt(dragOrigin + (pointerPosition() - dragStart))
+        local delta = pointerPosition() - dragStart
+        clampPosition(dragOriginX + delta.X, dragOriginY + delta.Y)
     end))
 
     track(UserInputService.InputEnded:Connect(function(input)
@@ -6047,22 +6022,25 @@ function Library:_createKeybindMenu(window)
 
     track(gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
         if not menu.Destroyed then
-            fitWidth()
-            menu:_place()
+            menu:_reclamp()
+        end
+    end))
+
+    -- AutoSize changes the frame on row edits, fold/unfold and UI scale
+    -- changes; keep the anchored frame inside the screen without any fitting.
+    track(frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        if not menu.Destroyed then
+            menu:_reclamp()
         end
     end))
 
     track(frame:GetPropertyChangedSignal("Visible"):Connect(function()
-        -- Opening from anywhere - API, the Theme Manager toggle or a raw
-        -- Library.KeybindFrame.Visible = true - refreshes the rows and keeps
-        -- the Theme Manager toggle honest.
+        -- Keep the Theme Manager toggle honest whether the menu was opened
+        -- from the API, the toggle or a raw Frame.Visible change. Opening
+        -- does no row work: every row is already current.
         local toggle = window._keybindMenuToggle
         if toggle and not toggle._destroyed then
             toggle:Set(frame.Visible, true)
-        end
-        if frame.Visible and not menu.Destroyed then
-            menu:Refresh()
-            queuePlace()
         end
     end))
 
@@ -6083,22 +6061,8 @@ function Library:_createKeybindMenu(window)
     Library.KeybindFrame = frame
     Library.KeybindMenu = menu
     renderCollapse()
-    menu:Refresh()
-    menu:_place()
+    menu:_syncEmpty()
     return menu
-end
-
--- Rebuilds every window's Keybind Menu, pruning binds whose element or window
--- is gone. Called by Keybind:Set/Destroy and when elements are registered.
-function Library:_refreshKeybindMenus()
-    for index = #Library._keybindMenus, 1, -1 do
-        local menu = Library._keybindMenus[index]
-        if menu.Destroyed or not menu.Frame or not menu.Frame.Parent then
-            table.remove(Library._keybindMenus, index)
-        else
-            menu:Refresh()
-        end
-    end
 end
 
 local function isShown(object, stopAt, point)
@@ -20917,8 +20881,9 @@ function Window:SetKeybind(key)
     end
 end
 
--- The floating Keybind Menu created with this window. It lists every Keybind
--- widget in the script as "[Key] Name" and is hidden until opened.
+-- The floating Keybind Menu created with this window. It lists this window's
+-- Keybind widgets as "[Key] Name", keeps each row current in place, and is
+-- hidden until opened.
 function Window:SetKeybindMenu(enabled)
     local menu = self.KeybindMenu
     if menu and not menu.Destroyed then

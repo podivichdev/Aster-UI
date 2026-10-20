@@ -225,14 +225,14 @@ Watermark:Destroy()
 
 ### Keybind menu
 
-Every `Keybind` widget in the script is listed on one floating menu, Obsidian-style: `[F] Flight`, `[None] Speed`, in creation order across every tab, sub tab and groupbox. Key captures, `Set` calls and destroyed elements update the list live. The menu is draggable by its title bar, folds to the title bar with the chevron, draws 10% larger than the window's UI scale, follows the theme, and starts at Obsidian's default spot — left edge, vertically centred. It is hidden by default.
+Every `Keybind` widget in the script is listed on one floating menu, Obsidian-style: `[F] Flight`, `[None] Speed`, in creation order across every tab, sub tab and groupbox. Like Obsidian, each row is created once with its widget and updated in place: key captures, `Set` calls and destroyed elements never rebuild the list, and opening or closing the menu is only a `Visible` change. The menu is draggable by its title bar, folds to the title bar with the chevron, draws 10% larger than the window's UI scale, follows the theme, and starts at Obsidian's default spot — left edge, vertically centred. It is hidden by default.
 
 ```lua
 Window:SetKeybindMenu(true)          -- open
 Window:ToggleKeybindMenu()           -- open / close
 Aster.KeybindFrame.Visible = true    -- the same frame, raw Roblox style
 Aster.KeybindMenu:SetCollapsed(true) -- fold to the title bar
-Aster.KeybindMenu:Refresh()          -- rebuild after adding elements
+Aster.KeybindMenu:Refresh()          -- force a row repaint; rows update themselves
 ```
 
 `CreateWindow({ KeybindMenu = true })` starts it open. `Tab:ThemeManager()` also gets a **Keybind Menu** toggle. Each window owns one (`Window.KeybindFrame` / `Window.KeybindMenu`); `Aster.KeybindFrame` and `Aster.KeybindMenu` point at the newest window's, like Obsidian.

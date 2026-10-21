@@ -4575,33 +4575,6 @@ local function detectGameName()
     return RunService:IsStudio() and "Studio" or "Unknown game"
 end
 
-local REGION_NAMES = {
-    US = "United States", GB = "United Kingdom", DE = "Germany", FR = "France",
-    NL = "Netherlands", SG = "Singapore", JP = "Japan", AU = "Australia",
-    BR = "Brazil", IN = "India", HK = "Hong Kong", CA = "Canada",
-}
-
-local function detectRegion(callback)
-    task.spawn(function()
-        local requester = request or http_request or (syn and syn.request) or (http and http.request)
-        local region
-        if type(requester) == "function" then
-            pcall(function()
-                local response = requester({ Url = "https://ipinfo.io/json", Method = "GET" })
-                local body = type(response) == "table" and (response.Body or response.body) or nil
-                if type(body) == "string" then
-                    local data = HttpService:JSONDecode(body)
-                    if type(data) == "table" and data.country then
-                        local label = REGION_NAMES[data.country] or data.country
-                        region = data.city and (data.city .. ", " .. label) or label
-                    end
-                end
-            end)
-        end
-        callback(region or "Unavailable")
-    end)
-end
-
 local NOTIFY_COLORS = setmetatable({}, {
     __index = function(_, kind)
         if kind == "Success" or kind == "Warning" or kind == "Error" then
@@ -9262,7 +9235,6 @@ local STAT_TYPES = {
     Ping = { "wifi", "Ping" },
     Executor = { "terminal", "Executor" },
     Game = { "gamepad-2", "Game" },
-    Region = { "globe", "Region" },
     Time = { "clock", "Time" },
     ServerAge = { "server", "Server age" },
     Memory = { "cpu", "Memory" },
@@ -15733,12 +15705,6 @@ function Window:_homeStats(list, opts, order, tab)
         values.Game.Text = "Loading"
         task.spawn(function()
             values.Game.Text = detectGameName()
-        end)
-    end
-    if values.Region then
-        values.Region.Text = "Loading"
-        detectRegion(function(region)
-            values.Region.Text = region
         end)
     end
     if values.Execs then

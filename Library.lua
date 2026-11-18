@@ -15820,6 +15820,177 @@ function Window:_homeStats(list, opts, order, tab)
     end
 end
 
+-- Reads a Changelog config (or a plain list of entries) into a list of versions.
+local function changelogEntries(source)
+    if type(source) ~= "table" then
+        return nil
+    end
+    local entries = source.Entries or source.Updates or source.Versions
+    if type(entries) ~= "table" then
+        if source[1] ~= nil then
+            entries = source
+        elseif source.Version ~= nil or source.Changes ~= nil or source.Content ~= nil then
+            entries = { source }
+        end
+    end
+    if type(entries) ~= "table" or #entries == 0 then
+        return nil
+    end
+    return entries
+end
+
+local function changelogTag(value)
+    if type(value) == "number" then
+        local ok, date = pcall(os.date, "%b %d", value)
+        if ok then
+            return (date:gsub(" 0", " "))
+        end
+        return tostring(value)
+    end
+    return value ~= nil and tostring(value) or nil
+end
+
+-- One card per version: version on the left, tag or date on the right, changes below.
+local function changelogPage(sub, entries, config)
+    local list = sub.List
+    local showLatest = config.Latest ~= false
+    for index, entry in ipairs(entries) do
+        if type(entry) == "string" then
+            entry = { Content = entry }
+        end
+        if type(entry) == "table" then
+            local card_ = panelCard(list, 0, index)
+            card_.AutomaticSize = Enum.AutomaticSize.Y
+            padding(card_, 16, 16, 14, 14)
+            create("UIListLayout", {
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 10),
+                Parent = card_,
+            })
+            local head = create("Frame", {
+                Size = UDim2.new(1, 0, 0, 22),
+                BackgroundTransparency = 1,
+                LayoutOrder = 1,
+                Parent = card_,
+            })
+            label({
+                Size = UDim2.new(1, -100, 1, 0),
+                Text = tostring(entry.Version or entry.Title or entry.Name or "Update"),
+                TextSize = 15,
+                FontFace = Fonts.Bold,
+                Parent = head,
+            })
+            local tag = entry.Tag
+            if tag == false then
+                tag = nil
+            else
+                if tag == nil then
+                    tag = changelogTag(entry.Date)
+                end
+                if tag == nil then
+                    if entry.Latest == true or (entry.Latest ~= false and showLatest and index == 1) then
+                        tag = "Latest"
+                    end
+                end
+            end
+            if tag ~= nil then
+                local chip = create("Frame", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, 0, 0.5, 0),
+                    Size = UDim2.new(0, 0, 0, 20),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundColor3 = Theme.Surface3,
+                    BackgroundTransparency = 0.35,
+                    BorderSizePixel = 0,
+                    Parent = head,
+                })
+                corner(chip, UDim.new(0, 6))
+                padding(chip, 9, 9)
+                label({
+                    Size = UDim2.new(0, 0, 1, 0),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    Text = tostring(tag),
+                    TextSize = 11,
+                    TextColor3 = Theme.Muted,
+                    TextTruncate = Enum.TextTruncate.None,
+                    Parent = chip,
+                })
+            end
+            local changes = entry.Changes or entry.Items
+            if type(changes) == "string" then
+                changes = { changes }
+            end
+            if type(changes) == "table" and #changes > 0 then
+                local body = create("Frame", {
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    LayoutOrder = 2,
+                    Parent = card_,
+                })
+                create("UIListLayout", {
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 4),
+                    Parent = body,
+                })
+                for changeIndex, change in ipairs(changes) do
+                    local row = create("Frame", {
+                        Size = UDim2.new(1, 0, 0, 0),
+                        AutomaticSize = Enum.AutomaticSize.Y,
+                        BackgroundTransparency = 1,
+                        LayoutOrder = changeIndex,
+                        Parent = body,
+                    })
+                    label({
+                        Size = UDim2.fromOffset(12, 18),
+                        Text = "•",
+                        TextSize = 13,
+                        FontFace = Fonts.Regular,
+                        TextColor3 = Theme.Muted,
+                        TextYAlignment = Enum.TextYAlignment.Top,
+                        Parent = row,
+                    })
+                    label({
+                        Position = UDim2.fromOffset(14, 0),
+                        Size = UDim2.new(1, -14, 0, 0),
+                        AutomaticSize = Enum.AutomaticSize.Y,
+                        Text = tostring(change),
+                        TextSize = 13,
+                        FontFace = Fonts.Regular,
+                        TextColor3 = Theme.Muted,
+                        TextWrapped = true,
+                        TextTruncate = Enum.TextTruncate.None,
+                        TextYAlignment = Enum.TextYAlignment.Top,
+                        Parent = row,
+                    })
+                end
+            else
+                local text = entry.Content or entry.Body
+                if text then
+                    label({
+                        Size = UDim2.new(1, 0, 0, 0),
+                        AutomaticSize = Enum.AutomaticSize.Y,
+                        Text = tostring(text),
+                        TextSize = 13,
+                        FontFace = Fonts.Regular,
+                        TextColor3 = Theme.Muted,
+                        TextWrapped = true,
+                        TextTruncate = Enum.TextTruncate.None,
+                        TextYAlignment = Enum.TextYAlignment.Top,
+                        LayoutOrder = 2,
+                        Parent = card_,
+                    })
+                end
+            end
+        end
+    end
+    if type(config.Build) == "function" then
+        safeCall(config.Build, sub, list)
+    else
+        sub._noSearch = true
+    end
+end
+
 local function homePage(sub, page)
     local list = sub.List
     if type(page.Content) == "string" then
@@ -15930,17 +16101,26 @@ function Window:_buildHome(opts)
     self.Home = tab
 
     local pages = opts.Pages or opts.Tabs
-    local overview = tab
-    if type(pages) == "table" and #pages > 0 then
-        local overviewIcon = opts.TabIcon
-        if overviewIcon == nil then
-            overviewIcon = "layout-grid"
-        end
-        overview = tab:SubTab({ Name = opts.OverviewName or "Overview", Icon = overviewIcon })
+    local changelogConfig = type(opts.Changelog) == "table" and opts.Changelog or nil
+    local changelogList = changelogEntries(changelogConfig)
+    if not changelogList and changelogConfig and type(changelogConfig.Build) == "function" then
+        changelogList = {}
     end
-    overview._noSearch = true
-    overview._order = 100
-    local list = overview.List
+
+    -- Detail always comes first and holds every original Home card.
+    local detailIcon = opts.DetailIcon or opts.TabIcon
+    if detailIcon == nil then
+        detailIcon = "layout-grid"
+    end
+    local detail = tab:SubTab({
+        Name = opts.DetailName or opts.OverviewName or "Detail",
+        Icon = detailIcon,
+    })
+    detail._noSearch = true
+    detail._order = 100
+    tab.Detail = detail
+    self.Detail = detail
+    local list = detail.List
 
     local refreshExpiry = self:_homeProfile(list, opts, 1)
     local refreshStats, resetStats = self:_homeStats(list, opts, 2, tab)
@@ -15988,6 +16168,22 @@ function Window:_buildHome(opts)
     task.defer(fitSplit)
 
     self:_homeExecutor(list, opts, 4)
+
+    if changelogList then
+        local changelogIcon = changelogConfig.Icon or opts.ChangelogIcon
+        if changelogIcon == nil then
+            changelogIcon = "history"
+        end
+        local changelogTab = tab:SubTab({
+            Name = changelogConfig.Name or changelogConfig.Title or opts.ChangelogName or "Changelog",
+            Icon = changelogIcon,
+            EmptyText = changelogConfig.EmptyText or "No changes yet",
+        })
+        changelogTab._order = 101
+        tab.Changelog = changelogTab
+        self.Changelog = changelogTab
+        changelogPage(changelogTab, changelogList, changelogConfig)
+    end
 
     if type(pages) == "table" then
         for _, page in ipairs(pages) do

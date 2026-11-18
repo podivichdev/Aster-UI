@@ -27,6 +27,47 @@ local Window = Aster:CreateWindow({
     Home = {
         Discord = "discord.gg/asterhub",
         Stats = { "FPS", "Ping", "Game", "Players", "ServerAge", "Session", "Executor" },
+        DetailName = "Detail",
+        Changelog = {
+            Name = "Changelog",
+            Icon = "history",
+            Entries = {
+                {
+                    Version = "v1.4",
+                    Changes = {
+                        "Detail and Changelog sub-tabs on the home tab",
+                        "Changelog cards with a version, a badge and a wrapped bullet list that stays aligned",
+                        "Custom home pages now sit after the changelog",
+                    },
+                },
+                {
+                    Version = "v1.3",
+                    Date = "Sep 12",
+                    Changes = {
+                        "Live themes and six presets",
+                        "Lock, hide and rename any element",
+                        "Hold-mode keybinds",
+                    },
+                },
+                {
+                    Version = "v1.2",
+                    Date = "Aug 30",
+                    Changes = {
+                        "Added the home tab",
+                        "Smaller input boxes that grow",
+                        "Faster dropdowns",
+                    },
+                },
+                {
+                    Version = "v1.1",
+                    Date = "Aug 12",
+                    Changes = {
+                        "Config manager",
+                        "Stepper and progress elements",
+                    },
+                },
+            },
+        },
         HideName = false,
         HideAvatar = false,
     },

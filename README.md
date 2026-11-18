@@ -74,7 +74,7 @@ See [`Example.lua`](./Example.lua) for a full demo.
 | `ToggleButton` | table | Floating toggle button: `{ Platform = "Mobile" / "Both", Icon }`. |
 | `OpenButton` | table / bool | On-screen open button (mobile gets one by default). |
 | `Backdrop` | table / bool | Weather + dim backdrop; `false` disables it. |
-| `Home` | table / bool | Home dashboard, see below; `false` disables the Home tab. |
+| `Home` | table / bool | Home dashboard with a **Detail** sub-tab and an optional **Changelog**, see below; `false` disables the Home tab. |
 | `Icon` | string / `rbxassetid` | Replaces the embedded logo. `"None"` removes the logo — the window `Title` / `Subtitle` shift left into its place. |
 | `UIScale` | number | `0.6` – `1.5`, default `1`. |
 | `AdaptiveSize` | bool | Shrinks the window to fit small screens. Default `true`. |
@@ -85,15 +85,37 @@ See [`Example.lua`](./Example.lua) for a full demo.
 
 ### Home dashboard
 
+The Home tab opens on a **Detail** sub-tab with the profile banner, live stats, server card, links and executor footer. An optional **Changelog** sub-tab comes second; custom `Pages` follow it.
+
 ```lua
 Home = {
     Discord = "discord.gg/example",                 -- invite shown on the home tab
     Stats = { "Players", "Session", "FPS", "Ping" }, -- live stat chips
-    Pages = { { Name = "Changelog", Icon = "list" }, ... }, -- extra home sub-tabs
+    DetailName = "Detail",                          -- first sub-tab (alias `OverviewName`)
+    Changelog = {                                   -- optional second sub-tab
+        Name = "Changelog",
+        Icon = "history",
+        Latest = true,                              -- tag the first entry "Latest" (default)
+        Entries = {
+            {
+                Version = "v1.3",
+                -- Tag = "Latest",                  -- badge text; `Date` also works
+                Changes = {
+                    "Live themes and six presets",
+                    "Lock, hide and rename any element",
+                },
+            },
+            { Version = "v1.2", Date = "Sep 12", Changes = { "Added the home tab" } },
+            { Version = "v1.1", Date = "Aug 30", Changes = { "Config manager" } },
+        },
+    },
+    Pages = { { Name = "Credits", Icon = "users" }, ... }, -- extra home sub-tabs after Changelog
     HideName = false,
     HideAvatar = false,
 }
 ```
+
+`Changelog` also accepts a plain array of entries (`Changelog = { { Version = ... }, ... }`), a `Date` as a Unix timestamp (rendered as `Sep 12`), a per-entry `Tag` badge, and `Build = function(sub, list) end` for fully custom content. Omit `Changelog` to keep only the Detail sub-tab.
 
 ## Tabs
 

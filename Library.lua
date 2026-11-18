@@ -15820,7 +15820,6 @@ function Window:_homeStats(list, opts, order, tab)
     end
 end
 
--- Reads a Changelog config (or a plain list of entries) into a list of versions.
 local function changelogEntries(source)
     if type(source) ~= "table" then
         return nil
@@ -15850,7 +15849,6 @@ local function changelogTag(value)
     return value ~= nil and tostring(value) or nil
 end
 
--- One card per version: version on the left, tag or date on the right, changes below.
 local function changelogPage(sub, entries, config)
     local list = sub.List
     local showLatest = config.Latest ~= false
@@ -16107,7 +16105,6 @@ function Window:_buildHome(opts)
         changelogList = {}
     end
 
-    -- Detail always comes first and holds every original Home card.
     local detailIcon = opts.DetailIcon or opts.TabIcon
     if detailIcon == nil then
         detailIcon = "layout-grid"

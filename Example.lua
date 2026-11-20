@@ -27,15 +27,18 @@ local Window = Aster:CreateWindow({
     Home = {
         Discord = "discord.gg/asterhub",
         Stats = { "FPS", "Ping", "Game", "Players", "ServerAge", "Session", "Executor" },
-        DetailName = "Detail",
-        Changelog = {
-            Name = "Changelog",
-            Icon = "history",
+        Details = {
+            Name = "Details",
+            Icon = "layout-grid",
+        },
+        Changelogs = {
+            Name = "Changelogs",
+            Icon = "scroll-text",
             Entries = {
                 {
                     Version = "v1.4",
                     Changes = {
-                        "Detail and Changelog sub-tabs on the home tab",
+                        "Details and Changelogs sub-tabs on the home tab",
                         "Changelog cards with a version, a badge and a wrapped bullet list that stays aligned",
                         "Custom home pages now sit after the changelog",
                     },

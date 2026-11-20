@@ -16099,24 +16099,25 @@ function Window:_buildHome(opts)
     self.Home = tab
 
     local pages = opts.Pages or opts.Tabs
-    local changelogConfig = type(opts.Changelog) == "table" and opts.Changelog or nil
-    local changelogList = changelogEntries(changelogConfig)
-    if not changelogList and changelogConfig and type(changelogConfig.Build) == "function" then
+    local changelogs = type(opts.Changelogs) == "table" and opts.Changelogs or nil
+    local changelogList = changelogEntries(changelogs)
+    if not changelogList and changelogs and type(changelogs.Build) == "function" then
         changelogList = {}
     end
 
-    local detailIcon = opts.DetailIcon or opts.TabIcon
-    if detailIcon == nil then
-        detailIcon = "layout-grid"
+    local details = type(opts.Details) == "table" and opts.Details or {}
+    local detailsIcon = details.Icon
+    if detailsIcon == nil then
+        detailsIcon = "layout-grid"
     end
     local detail = tab:SubTab({
-        Name = opts.DetailName or opts.OverviewName or "Detail",
-        Icon = detailIcon,
+        Name = details.Name or "Details",
+        Icon = detailsIcon,
     })
     detail._noSearch = true
     detail._order = 100
-    tab.Detail = detail
-    self.Detail = detail
+    tab.Details = detail
+    self.Details = detail
     local list = detail.List
 
     local refreshExpiry = self:_homeProfile(list, opts, 1)
@@ -16167,19 +16168,19 @@ function Window:_buildHome(opts)
     self:_homeExecutor(list, opts, 4)
 
     if changelogList then
-        local changelogIcon = changelogConfig.Icon or opts.ChangelogIcon
+        local changelogIcon = changelogs.Icon
         if changelogIcon == nil then
-            changelogIcon = "history"
+            changelogIcon = "scroll-text"
         end
         local changelogTab = tab:SubTab({
-            Name = changelogConfig.Name or changelogConfig.Title or opts.ChangelogName or "Changelog",
+            Name = changelogs.Name or "Changelogs",
             Icon = changelogIcon,
-            EmptyText = changelogConfig.EmptyText or "No changes yet",
+            EmptyText = changelogs.EmptyText or "No changes yet",
         })
         changelogTab._order = 101
-        tab.Changelog = changelogTab
-        self.Changelog = changelogTab
-        changelogPage(changelogTab, changelogList, changelogConfig)
+        tab.Changelogs = changelogTab
+        self.Changelogs = changelogTab
+        changelogPage(changelogTab, changelogList, changelogs)
     end
 
     if type(pages) == "table" then
